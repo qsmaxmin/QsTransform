@@ -1,0 +1,24 @@
+apply plugin: 'groovy'
+apply plugin: 'maven'
+
+dependencies {
+    implementation gradleApi()
+    implementation localGroovy()
+    implementation "com.android.tools.build:gradle:3.6.3"
+    implementation 'org.javassist:javassist:3.27.0-GA'
+    implementation 'com.github.qsmaxmin:QsAnnotation:1.0.1'
+}
+
+tasks.withType(JavaCompile) {
+    options.encoding = "UTF-8"
+}
+
+uploadArchives {
+    repositories.mavenDeployer {
+        def deployPath = file(getProperty('aar.deployPath'))
+        repository(url: "file://${deployPath.absolutePath}")
+        pom.groupId = "com.qsmaxmin.plugin"
+        pom.artifactId = "QsPlugin"
+        pom.version = "9.9.9"
+    }
+}
