@@ -31,8 +31,12 @@ public class PermissionTransform {
     public static boolean transform(CtClass clazz, CtMethod[] declaredMethods, String rootPath, String filePath) throws Exception {
         if (declaredMethods == null || declaredMethods.length == 0) return false;
         if (callbackInterface == null) {
-            callbackInterface = TransformHelper.getClassPool().get(CLASS_PERMISSION_CALLBACK);
-            callbackMethod = callbackInterface.getDeclaredMethod(METHOD_CALLBACK);
+            synchronized (PermissionTransform.class) {
+                if (callbackInterface == null) {
+                    callbackInterface = TransformHelper.getClassPool().get(CLASS_PERMISSION_CALLBACK);
+                    callbackMethod = callbackInterface.getDeclaredMethod(METHOD_CALLBACK);
+                }
+            }
         }
 
         int methodIndex = 0;

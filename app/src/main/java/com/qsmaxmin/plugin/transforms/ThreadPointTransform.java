@@ -30,10 +30,13 @@ public class ThreadPointTransform {
 
     public static boolean transform(CtClass clazz, CtMethod[] declaredMethods, String rootPath, String filePath) throws Exception {
         if (declaredMethods == null || declaredMethods.length == 0) return false;
-
         if (runnableClass == null) {
-            runnableClass = TransformHelper.getClassPool().get("java.lang.Runnable");
-            runMethod = runnableClass.getDeclaredMethod("run");
+            synchronized (ThreadPointTransform.class) {
+                if (runnableClass == null) {
+                    runnableClass = TransformHelper.getClassPool().get("java.lang.Runnable");
+                    runMethod = runnableClass.getDeclaredMethod("run");
+                }
+            }
         }
 
         int methodIndex = 0;
