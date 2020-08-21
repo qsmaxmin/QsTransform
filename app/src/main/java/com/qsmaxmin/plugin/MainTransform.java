@@ -82,23 +82,31 @@ public class MainTransform extends Transform {
         TransformHelper.enableLog(myExtension.showLog);
         boolean incremental = transformInvocation.isIncremental();
         long t = System.currentTimeMillis();
-        println("\t> QsTransform started.......incremental:" + incremental + ", params:" + myExtension.toString());
+
 
         ArrayList<ClassPath> totalAppendList = new ArrayList<>();
         Collection<TransformInput> inputs = transformInvocation.getInputs();
         TransformOutputProvider outputProvider = transformInvocation.getOutputProvider();
 
+        println("\t> QsTransform started.......incremental:" + incremental + ", input size:" + inputs.size() + ", params:" + myExtension.toString());
         try {
             for (TransformInput input : inputs) {
-                processJarInputs(input.getJarInputs(), outputProvider, incremental, totalAppendList);
-                processDirInputs(input.getDirectoryInputs(), outputProvider, incremental, totalAppendList);
+                Collection<JarInput> jarInputs = input.getJarInputs();
+                if (jarInputs != null && jarInputs.size() > 0) {
+                    processJarInputs(jarInputs, outputProvider, incremental, totalAppendList);
+                }
+
+                Collection<DirectoryInput> dirInputs = input.getDirectoryInputs();
+                if (dirInputs != null && dirInputs.size() > 0) {
+                    processDirInputs(dirInputs, outputProvider, incremental, totalAppendList);
+                }
             }
         } catch (Exception e) {
             e.printStackTrace();
             throw new TransformException(e);
         } finally {
             for (ClassPath cp : totalAppendList) {
-                removeDirClassPath(cp);
+                TransformHelper.getClassPool().removeClassPath(cp);
             }
             TransformHelper.release();
         }
@@ -150,7 +158,7 @@ public class MainTransform extends Transform {
         }
 
         if (totalChangedSize == 0) {
-            println("\t> transformed class complete, no changed...");
+            println("\t\t> transform class complete, no changed...");
             return;
         }
 
@@ -162,7 +170,7 @@ public class MainTransform extends Transform {
                 if (transformed) transformedCount.getAndIncrement();
             }
         }
-        println("\t> transform class complete, transform count: " + transformedCount + ", total count: " + totalChangedSize);
+        println("\t> transform class complete, transform count: " + 1111 + ", total count: " + totalChangedSize);
     }
 
     private void filterOutJavaClass(File file, List<String> filePathList) {
@@ -252,10 +260,6 @@ public class MainTransform extends Transform {
 
     private void println(String text) {
         TransformHelper.println(text);
-    }
-
-    private void removeDirClassPath(ClassPath classPath) {
-        TransformHelper.getClassPool().removeClassPath(classPath);
     }
 
     public boolean shouldAppendClassPath(String classPath) {
