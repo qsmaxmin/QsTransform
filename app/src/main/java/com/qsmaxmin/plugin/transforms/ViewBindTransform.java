@@ -31,15 +31,10 @@ public class ViewBindTransform {
         int state = 0;
         if (declaredFields != null && declaredFields.length > 0) {
             for (CtField field : declaredFields) {
-                Object[] annotations = field.getAnnotations();
-                if (annotations != null && annotations.length == 1) {
-                    Object annotation = annotations[0];
-                    if (annotation instanceof Bind) {
-                        state |= STATE_BIND_VIEW;
-
-                    } else if (annotation instanceof BindBundle) {
-                        state |= STATE_BIND_BUNDLE;
-                    }
+                if (!matched(state, STATE_BIND_VIEW) && TransformHelper.isFieldHasAnnotation(field, Bind.class)) {
+                    state |= STATE_BIND_VIEW;
+                } else if (!matched(state, STATE_BIND_BUNDLE) && TransformHelper.isFieldHasAnnotation(field, BindBundle.class)) {
+                    state |= STATE_BIND_BUNDLE;
                 }
             }
         }

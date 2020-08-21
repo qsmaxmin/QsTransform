@@ -27,11 +27,8 @@ public class TransformHelper {
     }
 
     public static synchronized void release() {
+        classPool.clearImportedPackages();
         classPool = null;
-    }
-
-    public static boolean shouldAppendClassPath(String classPath) {
-        return classPath.contains(BASE_PROJECT_NAME) || classPath.contains(BASE_ANNOTATION_NAME);
     }
 
     public static boolean hasField(CtClass ctClass, String fieldName) {
@@ -171,5 +168,14 @@ public class TransformHelper {
         } catch (NotFoundException ignored) {
             return false;
         }
+    }
+
+    public static boolean isFieldHasAnnotation(CtField field, Class<?> annClass) {
+        try {
+            Object annotation = field.getAnnotation(annClass);
+            if (annotation != null) return true;
+        } catch (ClassNotFoundException ignored) {
+        }
+        return false;
     }
 }

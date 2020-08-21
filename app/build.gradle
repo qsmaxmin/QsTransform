@@ -18,7 +18,7 @@ uploadArchives {
         def deployPath = file(getProperty('aar.deployPath'))
         repository(url: "file://${deployPath.absolutePath}")
         pom.groupId = "com.qsmaxmin.plugin"
-        pom.artifactId = "QsPlugin"
+        pom.artifactId = "QsTransform"
         pom.version = "9.9.9"
     }
 }

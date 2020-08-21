@@ -58,7 +58,7 @@ public class EventTransform {
     private static void checkCanTransform(CtClass clazz) throws CannotCompileException {
         CtMethod bindMethod = TransformHelper.getMethodByName(clazz, METHOD_BIND);
         if (bindMethod == null) {
-            throw new CannotCompileException("Classes with @Subscribe annotations must extends QsActivity, QsFragment and QsDialogFragment");
+            throw new CannotCompileException("Classes(" + clazz.getSimpleName() + ") with @Subscribe annotations must extends QsActivity, QsFragment and QsDialogFragment");
         }
     }
 

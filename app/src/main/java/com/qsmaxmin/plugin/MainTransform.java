@@ -19,6 +19,8 @@ import com.qsmaxmin.plugin.transforms.PropertyTransform;
 import com.qsmaxmin.plugin.transforms.ThreadPointTransform;
 import com.qsmaxmin.plugin.transforms.ViewBindTransform;
 
+import org.gradle.api.Project;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -35,6 +37,12 @@ import javassist.CtField;
 import javassist.CtMethod;
 
 public class MainTransform extends Transform {
+    private final Project     project;
+    private       MyExtension myExtension;
+
+    public MainTransform(Project project) {
+        this.project = project;
+    }
 
     @Override
     public String getName() {
@@ -67,32 +75,36 @@ public class MainTransform extends Transform {
     @Override
     public void transform(TransformInvocation transformInvocation) throws TransformException, InterruptedException, IOException {
         super.transform(transformInvocation);
+        myExtension = (MyExtension) project.property("QsPlugin");
+        if (myExtension == null || !myExtension.enable) return;
+
+        TransformHelper.enableLog(myExtension.showLog);
         boolean incremental = transformInvocation.isIncremental();
         long t = System.currentTimeMillis();
-        println("\t> QsTransform started.......incremental:" + incremental);
+        println("\t> QsTransform started.......incremental:" + incremental + myExtension.toString());
 
         Collection<TransformInput> inputs = transformInvocation.getInputs();
         TransformOutputProvider outputProvider = transformInvocation.getOutputProvider();
-        try {
-            ArrayList<ClassPath> totalAppendList = new ArrayList<>();
 
+        ArrayList<ClassPath> totalAppendList = new ArrayList<>();
+        try {
             for (TransformInput input : inputs) {
                 List<ClassPath> appendedJarList = processJarInputs(input.getJarInputs(), outputProvider, incremental);
-                List<ClassPath> appendedDirList = processDirInputs(input.getDirectoryInputs(), outputProvider, incremental);
-
                 totalAppendList.addAll(appendedJarList);
+
+                List<ClassPath> appendedDirList = processDirInputs(input.getDirectoryInputs(), outputProvider, incremental);
                 totalAppendList.addAll(appendedDirList);
             }
-
-            for (ClassPath cp : totalAppendList) {
-                removeDirClassPath(cp);
-            }
-            println("\t> QsTransform ended...... use time:" + (System.currentTimeMillis() - t) + " ms");
-
         } catch (Exception e) {
             e.printStackTrace();
             throw new TransformException(e);
+        } finally {
+            for (ClassPath cp : totalAppendList) {
+                removeDirClassPath(cp);
+            }
+            TransformHelper.release();
         }
+        println("\t> QsTransform ended...... use time:" + (System.currentTimeMillis() - t) + " ms");
     }
 
     /**
@@ -221,7 +233,7 @@ public class MainTransform extends Transform {
 
     private ClassPath checkShouldAppendJarPath(File inputFile) throws Exception {
         String jarPath = inputFile.getAbsolutePath();
-        if (TransformHelper.shouldAppendClassPath(jarPath)) {
+        if (shouldAppendClassPath(jarPath)) {
             println("\t> appendClassPath(jar) :" + jarPath);
             return TransformHelper.getClassPool().appendClassPath(jarPath);
         }
@@ -239,6 +251,10 @@ public class MainTransform extends Transform {
 
     private void removeDirClassPath(ClassPath classPath) {
         TransformHelper.getClassPool().removeClassPath(classPath);
+    }
+
+    public boolean shouldAppendClassPath(String classPath) {
+        return myExtension.shouldAppendClassPath(classPath);
     }
 
 }
