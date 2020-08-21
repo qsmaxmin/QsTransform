@@ -31,7 +31,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import javassist.ClassPath;
 import javassist.CtClass;
 import javassist.CtField;
 import javassist.CtMethod;
@@ -84,7 +83,6 @@ public class MainTransform extends Transform {
         boolean incremental = transformInvocation.isIncremental();
         long t0 = System.currentTimeMillis();
 
-        ArrayList<ClassPath> totalAppendList = new ArrayList<>();
         Collection<TransformInput> inputs = transformInvocation.getInputs();
         TransformOutputProvider outputProvider = transformInvocation.getOutputProvider();
 
@@ -93,7 +91,7 @@ public class MainTransform extends Transform {
             for (TransformInput input : inputs) {
                 Collection<JarInput> jarInputs = input.getJarInputs();
                 if (jarInputs != null && jarInputs.size() > 0) {
-                    processJarInputs(jarInputs, outputProvider, incremental, totalAppendList);
+                    processJarInputs(jarInputs, outputProvider, incremental);
                 }
             }
             println("\t\t transform jar complete, time spent:" + (System.currentTimeMillis() - t0) + "ms");
@@ -101,7 +99,7 @@ public class MainTransform extends Transform {
             for (TransformInput input : inputs) {
                 Collection<DirectoryInput> dirInputs = input.getDirectoryInputs();
                 if (dirInputs != null && dirInputs.size() > 0) {
-                    processDirInputs(dirInputs, outputProvider, incremental, totalAppendList);
+                    processDirInputs(dirInputs, outputProvider, incremental);
                 }
             }
             println("\t\t transform class complete, time spent:" + (System.currentTimeMillis() - t0) + "ms");
@@ -110,26 +108,22 @@ public class MainTransform extends Transform {
             e.printStackTrace();
             throw new TransformException(e);
         } finally {
-            for (ClassPath cp : totalAppendList) {
-                TransformHelper.getClassPool().removeClassPath(cp);
-            }
             TransformHelper.release();
+            println("\t> QsTransform ended...... time spent:" + (System.currentTimeMillis() - t0) + " ms");
         }
-        println("\t> QsTransform ended...... time spent:" + (System.currentTimeMillis() - t0) + " ms");
     }
 
     /**
      * 目录文件夹是我们的源代码和生成的R文件和BuildConfig文件等
      */
-    private void processDirInputs(Collection<DirectoryInput> directoryInputs, TransformOutputProvider outputProvider, boolean incremental, ArrayList<ClassPath> appendedList) throws Exception {
+    private void processDirInputs(Collection<DirectoryInput> directoryInputs, TransformOutputProvider outputProvider, boolean incremental) throws Exception {
         HashMap<String, List<String>> totalChangedMap = new HashMap<>();
         int totalChangedSize = 0;
 
         for (DirectoryInput dirInput : directoryInputs) {
             File inputDir = dirInput.getFile();
             File destDir = outputProvider.getContentLocation(inputDir.getAbsolutePath(), dirInput.getContentTypes(), dirInput.getScopes(), Format.DIRECTORY);
-            ClassPath appendedClassPath = appendDirClassPath(inputDir.getAbsolutePath());
-            appendedList.add(appendedClassPath);
+            appendDirClassPath(inputDir.getAbsolutePath());
 
             ArrayList<String> changedFileList = null;
             if (incremental) {
@@ -195,7 +189,7 @@ public class MainTransform extends Transform {
     private boolean processJavaClassFile(String rootPath, String filePath) throws Exception {
         boolean transformed = false;
         FileInputStream fis = new FileInputStream(filePath);
-        CtClass clazz = TransformHelper.getClassPool().makeClass(fis, false);
+        CtClass clazz = TransformHelper.getInstance().makeClass(fis, false);
         fis.close();
 
         if (clazz == null) {
@@ -224,7 +218,7 @@ public class MainTransform extends Transform {
     }
 
 
-    private void processJarInputs(Collection<JarInput> jarInputs, TransformOutputProvider outputProvider, boolean incremental, ArrayList<ClassPath> appendedList) throws Exception {
+    private void processJarInputs(Collection<JarInput> jarInputs, TransformOutputProvider outputProvider, boolean incremental) throws Exception {
         for (JarInput jarInput : jarInputs) {
             File inputFile = jarInput.getFile();
             File destFile = outputProvider.getContentLocation(inputFile.getAbsolutePath(), jarInput.getContentTypes(), jarInput.getScopes(), Format.JAR);
@@ -244,23 +238,21 @@ public class MainTransform extends Transform {
             } else {
                 FileUtils.copyFile(inputFile, destFile);
             }
-            ClassPath classPath = checkShouldAppendJarPath(inputFile);
-            if (classPath != null) appendedList.add(classPath);
+            checkShouldAppendJarPath(inputFile);
         }
     }
 
-    private ClassPath checkShouldAppendJarPath(File inputFile) throws Exception {
+    private void checkShouldAppendJarPath(File inputFile) throws Exception {
         String jarPath = inputFile.getAbsolutePath();
         if (shouldAppendClassPath(jarPath)) {
             println("\t> appendClassPath(jar) :" + jarPath);
-            return TransformHelper.getClassPool().appendClassPath(jarPath);
+            TransformHelper.getInstance().appendClassPath(jarPath);
         }
-        return null;
     }
 
-    private ClassPath appendDirClassPath(String dirPath) throws Exception {
+    private void appendDirClassPath(String dirPath) throws Exception {
         println("\t> appendClassPath(class dir) :" + dirPath);
-        return TransformHelper.getClassPool().appendClassPath(dirPath);
+        TransformHelper.getInstance().appendClassPath(dirPath);
     }
 
     private void println(String text) {

@@ -33,7 +33,7 @@ public class PermissionTransform {
         if (callbackInterface == null) {
             synchronized (PermissionTransform.class) {
                 if (callbackInterface == null) {
-                    callbackInterface = TransformHelper.getClassPool().get(CLASS_PERMISSION_CALLBACK);
+                    callbackInterface = TransformHelper.getInstance().get(CLASS_PERMISSION_CALLBACK);
                     callbackMethod = callbackInterface.getDeclaredMethod(METHOD_CALLBACK);
                 }
             }
@@ -85,7 +85,7 @@ public class PermissionTransform {
 
     private static CtClass createCallbackImplClass(CtClass clazz, CtMethod originalMethod, boolean forceGoOn, int methodIndex) throws Exception {
         String implClassName = clazz.getName() + "_QsPermission" + methodIndex;
-        CtClass implClass = TransformHelper.getClass(implClassName);
+        CtClass implClass = TransformHelper.getInstance().makeClassIfNotExists(implClassName);
         if (implClass.isFrozen()) implClass.defrost();
 
         implClass.setInterfaces(new CtClass[]{callbackInterface});

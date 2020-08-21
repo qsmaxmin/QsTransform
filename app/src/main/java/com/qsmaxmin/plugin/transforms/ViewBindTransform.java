@@ -69,7 +69,7 @@ public class ViewBindTransform {
     }
 
     private static void addBindViewMethod(CtClass clazz) throws Exception {
-        CtClass[] viewClasses = new CtClass[]{TransformHelper.getClassPool().makeClass(PATH_VIEW)};
+        CtClass[] viewClasses = new CtClass[]{TransformHelper.getInstance().makeClass(PATH_VIEW)};
         CtMethod ctMethod = new CtMethod(CtClass.voidType, METHOD_BIND_VIEW, viewClasses, clazz);
         ctMethod.setModifiers(Modifier.PUBLIC);
         ctMethod.setBody("{" + clazz.getName() + "_QsBind.bindView($0, $1);}");
@@ -77,7 +77,7 @@ public class ViewBindTransform {
     }
 
     private static void addBindBundleMethod(CtClass clazz) throws Exception {
-        CtClass[] bundleClass = new CtClass[]{TransformHelper.getClassPool().makeClass(PATH_BUNDLE)};
+        CtClass[] bundleClass = new CtClass[]{TransformHelper.getInstance().makeClass(PATH_BUNDLE)};
         CtMethod ctMethod = new CtMethod(CtClass.voidType, METHOD_BIND_BUNDLE, bundleClass, clazz);
         ctMethod.setModifiers(Modifier.PUBLIC);
         ctMethod.setBody("{" + clazz.getName() + "_QsBind.bindBundle($0, $1);}");

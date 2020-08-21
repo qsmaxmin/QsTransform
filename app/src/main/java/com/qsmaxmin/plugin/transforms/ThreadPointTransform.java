@@ -33,7 +33,7 @@ public class ThreadPointTransform {
         if (runnableClass == null) {
             synchronized (ThreadPointTransform.class) {
                 if (runnableClass == null) {
-                    runnableClass = TransformHelper.getClassPool().get("java.lang.Runnable");
+                    runnableClass = TransformHelper.getInstance().get("java.lang.Runnable");
                     runMethod = runnableClass.getDeclaredMethod("run");
                 }
             }
@@ -67,7 +67,7 @@ public class ThreadPointTransform {
 
     private static CtClass createRunnableClass(CtClass clazz, CtMethod originalMethod, int methodIndex) throws Exception {
         String implClassName = clazz.getName() + "_QsThread" + methodIndex;
-        CtClass implClass = TransformHelper.getClass(implClassName);
+        CtClass implClass = TransformHelper.getInstance().makeClassIfNotExists(implClassName);
         if (implClass.isFrozen()) implClass.defrost();
 
         implClass.setInterfaces(new CtClass[]{runnableClass});
