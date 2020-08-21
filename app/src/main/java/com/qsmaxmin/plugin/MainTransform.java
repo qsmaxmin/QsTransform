@@ -30,6 +30,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import javassist.ClassPath;
 import javassist.CtClass;
@@ -81,19 +82,16 @@ public class MainTransform extends Transform {
         TransformHelper.enableLog(myExtension.showLog);
         boolean incremental = transformInvocation.isIncremental();
         long t = System.currentTimeMillis();
-        println("\t> QsTransform started.......incremental:" + incremental + myExtension.toString());
+        println("\t> QsTransform started.......incremental:" + incremental + ", params:" + myExtension.toString());
 
+        ArrayList<ClassPath> totalAppendList = new ArrayList<>();
         Collection<TransformInput> inputs = transformInvocation.getInputs();
         TransformOutputProvider outputProvider = transformInvocation.getOutputProvider();
 
-        ArrayList<ClassPath> totalAppendList = new ArrayList<>();
         try {
             for (TransformInput input : inputs) {
-                List<ClassPath> appendedJarList = processJarInputs(input.getJarInputs(), outputProvider, incremental);
-                totalAppendList.addAll(appendedJarList);
-
-                List<ClassPath> appendedDirList = processDirInputs(input.getDirectoryInputs(), outputProvider, incremental);
-                totalAppendList.addAll(appendedDirList);
+                processJarInputs(input.getJarInputs(), outputProvider, incremental, totalAppendList);
+                processDirInputs(input.getDirectoryInputs(), outputProvider, incremental, totalAppendList);
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -110,15 +108,15 @@ public class MainTransform extends Transform {
     /**
      * 目录文件夹是我们的源代码和生成的R文件和BuildConfig文件等
      */
-    private List<ClassPath> processDirInputs(Collection<DirectoryInput> directoryInputs, TransformOutputProvider outputProvider, boolean incremental) throws Exception {
-        ArrayList<ClassPath> appendList = new ArrayList<>();
-        HashMap<String, List<String>> changedData = new HashMap<>();
+    private void processDirInputs(Collection<DirectoryInput> directoryInputs, TransformOutputProvider outputProvider, boolean incremental, ArrayList<ClassPath> appendedList) throws Exception {
+        HashMap<String, List<String>> totalChangedMap = new HashMap<>();
+        int totalChangedSize = 0;
 
         for (DirectoryInput dirInput : directoryInputs) {
             File inputDir = dirInput.getFile();
             File destDir = outputProvider.getContentLocation(inputDir.getAbsolutePath(), dirInput.getContentTypes(), dirInput.getScopes(), Format.DIRECTORY);
             ClassPath appendedClassPath = appendDirClassPath(inputDir.getAbsolutePath());
-            appendList.add(appendedClassPath);
+            appendedList.add(appendedClassPath);
 
             ArrayList<String> changedFileList = null;
             if (incremental) {
@@ -130,12 +128,13 @@ public class MainTransform extends Transform {
                         String destFilePath = f.getAbsolutePath().replace(inputDir.getAbsolutePath(), destDir.getAbsolutePath());
                         File destFile = new File(destFilePath);
                         if (destFile.exists()) FileUtils.delete(destFile);
-                        if (status == Status.ADDED || status == Status.CHANGED) {
+                        if (status != Status.REMOVED) {
                             FileUtils.copyFile(f, destFile);
                             if (changedFileList == null) {
                                 changedFileList = new ArrayList<>();
-                                changedData.put(destDir.getAbsolutePath(), changedFileList);
+                                totalChangedMap.put(destDir.getAbsolutePath(), changedFileList);
                             }
+                            totalChangedSize++;
                             changedFileList.add(destFilePath);
                         }
                     }
@@ -145,15 +144,25 @@ public class MainTransform extends Transform {
                 FileUtils.copyDirectory(inputDir, destDir);
                 changedFileList = new ArrayList<>();
                 filterOutJavaClass(destDir, changedFileList);
-                changedData.put(destDir.getAbsolutePath(), changedFileList);
+                totalChangedSize += changedFileList.size();
+                totalChangedMap.put(destDir.getAbsolutePath(), changedFileList);
             }
         }
 
-        for (String rootPath : changedData.keySet()) {
-            List<String> strings = changedData.get(rootPath);
-            processJavaClassFile(rootPath, strings);
+        if (totalChangedSize == 0) {
+            println("\t> transformed class complete, no changed...");
+            return;
         }
-        return appendList;
+
+        AtomicInteger transformedCount = new AtomicInteger();
+        for (String rootPath : totalChangedMap.keySet()) {
+            List<String> strings = totalChangedMap.get(rootPath);
+            for (String filePath : strings) {
+                boolean transformed = processJavaClassFile(rootPath, filePath);
+                if (transformed) transformedCount.getAndIncrement();
+            }
+        }
+        println("\t> transform class complete, transform count: " + transformedCount + ", total count: " + totalChangedSize);
     }
 
     private void filterOutJavaClass(File file, List<String> filePathList) {
@@ -170,42 +179,39 @@ public class MainTransform extends Transform {
     }
 
 
-    private void processJavaClassFile(String rootPath, List<String> filePathList) throws Exception {
-        println("\t> total changed class count: " + filePathList.size());
-        int transformedCount = 0;
-        for (String filePath : filePathList) {
-            FileInputStream fis = new FileInputStream(filePath);
-            CtClass clazz = TransformHelper.getClassPool().makeClass(fis, false);
-            fis.close();
+    private boolean processJavaClassFile(String rootPath, String filePath) throws Exception {
+        boolean transformed = false;
+        FileInputStream fis = new FileInputStream(filePath);
+        CtClass clazz = TransformHelper.getClassPool().makeClass(fis, false);
+        fis.close();
 
-            if (clazz == null) {
-                println("\t\t> class not found: " + filePath);
-                continue;
-            }
+        if (clazz == null) {
+            println("\t\t> class not found: " + filePath);
+            return false;
+        }
 
-            if (clazz.getAnnotation(AutoProperty.class) != null) {
-                transformedCount++;
-                PropertyTransform.transform(clazz, rootPath, filePath);
-            } else {
-                CtMethod[] declaredMethods = clazz.getDeclaredMethods();
-                CtField[] declaredFields = clazz.getDeclaredFields();
+        if (clazz.getAnnotation(AutoProperty.class) != null) {
+            transformed = true;
+            PropertyTransform.transform(clazz, rootPath, filePath);
+        } else {
+            CtMethod[] declaredMethods = clazz.getDeclaredMethods();
+            CtField[] declaredFields = clazz.getDeclaredFields();
 
-                boolean hasEvent = EventTransform.transform(clazz, declaredMethods, filePath);
-                boolean hasViewBind = ViewBindTransform.transform(clazz, declaredMethods, declaredFields, filePath);
-                boolean hasPermission = PermissionTransform.transform(clazz, declaredMethods, rootPath, filePath);
-                boolean hasThreadPoint = ThreadPointTransform.transform(clazz, declaredMethods, rootPath, filePath);
+            boolean hasEvent = EventTransform.transform(clazz, declaredMethods, filePath);
+            boolean hasViewBind = ViewBindTransform.transform(clazz, declaredMethods, declaredFields, filePath);
+            boolean hasPermission = PermissionTransform.transform(clazz, declaredMethods, rootPath, filePath);
+            boolean hasThreadPoint = ThreadPointTransform.transform(clazz, declaredMethods, rootPath, filePath);
 
-                if (hasEvent || hasViewBind || hasPermission || hasThreadPoint) {
-                    transformedCount++;
-                    clazz.writeFile(rootPath);
-                }
+            if (hasEvent || hasViewBind || hasPermission || hasThreadPoint) {
+                transformed = true;
+                clazz.writeFile(rootPath);
             }
         }
-        println("\t> transformed class count: " + transformedCount);
+        return transformed;
     }
 
-    private List<ClassPath> processJarInputs(Collection<JarInput> jarInputs, TransformOutputProvider outputProvider, boolean incremental) throws Exception {
-        ArrayList<ClassPath> appendedList = new ArrayList<>();
+
+    private void processJarInputs(Collection<JarInput> jarInputs, TransformOutputProvider outputProvider, boolean incremental, ArrayList<ClassPath> appendedList) throws Exception {
         for (JarInput jarInput : jarInputs) {
             File inputFile = jarInput.getFile();
             File destFile = outputProvider.getContentLocation(inputFile.getAbsolutePath(), jarInput.getContentTypes(), jarInput.getScopes(), Format.JAR);
@@ -228,7 +234,6 @@ public class MainTransform extends Transform {
             ClassPath classPath = checkShouldAppendJarPath(inputFile);
             if (classPath != null) appendedList.add(classPath);
         }
-        return appendedList;
     }
 
     private ClassPath checkShouldAppendJarPath(File inputFile) throws Exception {
