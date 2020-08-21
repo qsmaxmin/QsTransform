@@ -39,11 +39,12 @@ import javassist.CtMethod;
 
 public class MainTransform extends Transform {
     private final Project     project;
+    private final Object      threadLocker;
     private       MyExtension myExtension;
-    private       long        t0;
 
     public MainTransform(Project project) {
         this.project = project;
+        this.threadLocker = new Object();
     }
 
     @Override
@@ -82,7 +83,7 @@ public class MainTransform extends Transform {
 
         TransformHelper.enableLog(myExtension.showLog);
         boolean incremental = transformInvocation.isIncremental();
-        t0 = System.currentTimeMillis();
+        long t0 = System.currentTimeMillis();
 
         ArrayList<ClassPath> totalAppendList = new ArrayList<>();
         Collection<TransformInput> inputs = transformInvocation.getInputs();
@@ -96,14 +97,16 @@ public class MainTransform extends Transform {
                     processJarInputs(jarInputs, outputProvider, incremental, totalAppendList);
                 }
             }
-            println("aaaaaaa------------>>" + (System.currentTimeMillis() - t0));
+            println("\t\t transform jar complete, time spent:" + (System.currentTimeMillis() - t0) + "ms");
+
             for (TransformInput input : inputs) {
                 Collection<DirectoryInput> dirInputs = input.getDirectoryInputs();
                 if (dirInputs != null && dirInputs.size() > 0) {
                     processDirInputs(dirInputs, outputProvider, incremental, totalAppendList);
                 }
             }
-            println("bbbbbbbb------------>>" + (System.currentTimeMillis() - t0));
+            println("\t\t transform class complete, time spent:" + (System.currentTimeMillis() - t0) + "ms");
+
         } catch (Exception e) {
             e.printStackTrace();
             throw new TransformException(e);
@@ -113,7 +116,7 @@ public class MainTransform extends Transform {
             }
             TransformHelper.release();
         }
-        println("\t> QsTransform ended...... use time:" + (System.currentTimeMillis() - t0) + " ms");
+        println("\t> QsTransform ended...... time spent:" + (System.currentTimeMillis() - t0) + " ms");
     }
 
     /**
@@ -173,7 +176,7 @@ public class MainTransform extends Transform {
                 if (transformed) transformedCount.getAndIncrement();
             }
         }
-        println("\t> transform class complete, transform count: " + transformedCount.get() + ", total count: " + totalChangedSize);
+        println("\t> transform count: " + transformedCount.get() + ", total count: " + totalChangedSize);
     }
 
     private void filterOutJavaClass(File file, List<String> filePathList) {
