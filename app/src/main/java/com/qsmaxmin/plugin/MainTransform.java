@@ -75,7 +75,7 @@ public class MainTransform extends Transform {
     @Override
     public void transform(TransformInvocation transformInvocation) throws TransformException, InterruptedException, IOException {
         super.transform(transformInvocation);
-        myExtension = (MyExtension) project.property("QsPlugin");
+        myExtension = project.getExtensions().findByType(MyExtension.class);
         if (myExtension == null || !myExtension.enable) return;
 
         TransformHelper.enableLog(myExtension.showLog);
