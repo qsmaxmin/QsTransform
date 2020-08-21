@@ -30,7 +30,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import javassist.ClassPath;
 import javassist.CtClass;
@@ -168,15 +167,15 @@ public class MainTransform extends Transform {
             return;
         }
 
-        AtomicInteger transformedCount = new AtomicInteger();
+        int transformedCount = 0;
         for (String rootPath : totalChangedMap.keySet()) {
             List<String> strings = totalChangedMap.get(rootPath);
             for (String filePath : strings) {
                 boolean transformed = processJavaClassFile(rootPath, filePath);
-                if (transformed) transformedCount.getAndIncrement();
+                if (transformed) transformedCount++;
             }
         }
-        println("\t> transform count: " + transformedCount.get() + ", total count: " + totalChangedSize);
+        println("\t> transform count: " + transformedCount + ", total count: " + totalChangedSize);
     }
 
     private void filterOutJavaClass(File file, List<String> filePathList) {
