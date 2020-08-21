@@ -101,13 +101,10 @@ public class MainTransform extends Transform {
                     processDirInputs(dirInputs, outputProvider, incremental);
                 }
             }
-
+            println("\t> QsTransform ended...... time spent:" + (System.currentTimeMillis() - t0) + " ms");
         } catch (Exception e) {
             e.printStackTrace();
             throw new TransformException(e);
-        } finally {
-            TransformHelper.release();
-            println("\t> QsTransform ended...... time spent:" + (System.currentTimeMillis() - t0) + " ms");
         }
     }
 
@@ -236,15 +233,15 @@ public class MainTransform extends Transform {
             } else {
                 FileUtils.copyFile(inputFile, destFile);
             }
-            checkShouldAppendJarPath(inputFile);
+            checkShouldAppendJarPath(inputFile, destFile);
         }
     }
 
-    private void checkShouldAppendJarPath(File inputFile) throws Exception {
+    private void checkShouldAppendJarPath(File inputFile, File destFile) throws Exception {
         String jarPath = inputFile.getAbsolutePath();
         if (shouldAppendClassPath(jarPath)) {
             println("\t> appendClassPath(jar) :" + jarPath);
-            TransformHelper.getInstance().appendClassPath(jarPath);
+            TransformHelper.getInstance().appendClassPath(destFile.getAbsolutePath());
         }
     }
 

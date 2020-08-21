@@ -2,9 +2,7 @@ package com.qsmaxmin.plugin;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.HashSet;
 
-import javassist.ClassPath;
 import javassist.ClassPool;
 import javassist.CtClass;
 import javassist.CtConstructor;
@@ -18,16 +16,15 @@ import javassist.NotFoundException;
  * @Description
  */
 public class TransformHelper {
-    private static TransformHelper    helper;
-    private static boolean            enableLog;
-    private        HashSet<ClassPath> appendClassList;
-    private        ClassPool          classPool;
+    private static TransformHelper helper;
+    private static boolean         enableLog;
+    private        ClassPool       classPool;
 
     public TransformHelper() {
-        appendClassList = new HashSet<>();
+        ClassPool.cacheOpenedJarFile = false;
         classPool = new ClassPool(null);
-        ClassPath classPath = classPool.appendSystemPath();
-        appendClassList.add(classPath);
+        classPool.appendSystemPath();
+
     }
 
     public static TransformHelper getInstance() {
@@ -39,9 +36,8 @@ public class TransformHelper {
         return helper;
     }
 
-    public void appendClassPath(String classPath) throws NotFoundException {
-        ClassPath path = classPool.appendClassPath(classPath);
-        if (path != null) appendClassList.add(path);
+    public void appendClassPath(String pathName) throws NotFoundException {
+        classPool.appendClassPath(pathName);
     }
 
     public CtClass makeClass(String className) {
@@ -63,20 +59,6 @@ public class TransformHelper {
 
     public CtClass get(String className) throws NotFoundException {
         return classPool.get(className);
-    }
-
-    public static void release() {
-        if (helper != null) {
-            if (helper.classPool != null) {
-                for (ClassPath path : helper.appendClassList) {
-                    helper.classPool.removeClassPath(path);
-                }
-                helper.appendClassList.clear();
-                helper.classPool.clearImportedPackages();
-                helper.classPool = null;
-            }
-        }
-        helper = null;
     }
 
     public static boolean hasField(CtClass ctClass, String fieldName) {
