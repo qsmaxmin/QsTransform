@@ -40,6 +40,7 @@ import javassist.CtMethod;
 public class MainTransform extends Transform {
     private final Project     project;
     private       MyExtension myExtension;
+    private       long        t0;
 
     public MainTransform(Project project) {
         this.project = project;
@@ -81,8 +82,7 @@ public class MainTransform extends Transform {
 
         TransformHelper.enableLog(myExtension.showLog);
         boolean incremental = transformInvocation.isIncremental();
-        long t = System.currentTimeMillis();
-
+        t0 = System.currentTimeMillis();
 
         ArrayList<ClassPath> totalAppendList = new ArrayList<>();
         Collection<TransformInput> inputs = transformInvocation.getInputs();
@@ -95,12 +95,15 @@ public class MainTransform extends Transform {
                 if (jarInputs != null && jarInputs.size() > 0) {
                     processJarInputs(jarInputs, outputProvider, incremental, totalAppendList);
                 }
-
+            }
+            println("aaaaaaa------------>>" + (System.currentTimeMillis() - t0));
+            for (TransformInput input : inputs) {
                 Collection<DirectoryInput> dirInputs = input.getDirectoryInputs();
                 if (dirInputs != null && dirInputs.size() > 0) {
                     processDirInputs(dirInputs, outputProvider, incremental, totalAppendList);
                 }
             }
+            println("bbbbbbbb------------>>" + (System.currentTimeMillis() - t0));
         } catch (Exception e) {
             e.printStackTrace();
             throw new TransformException(e);
@@ -110,7 +113,7 @@ public class MainTransform extends Transform {
             }
             TransformHelper.release();
         }
-        println("\t> QsTransform ended...... use time:" + (System.currentTimeMillis() - t) + " ms");
+        println("\t> QsTransform ended...... use time:" + (System.currentTimeMillis() - t0) + " ms");
     }
 
     /**
@@ -170,7 +173,7 @@ public class MainTransform extends Transform {
                 if (transformed) transformedCount.getAndIncrement();
             }
         }
-        println("\t> transform class complete, transform count: " + 1111 + ", total count: " + totalChangedSize);
+        println("\t> transform class complete, transform count: " + transformedCount.get() + ", total count: " + totalChangedSize);
     }
 
     private void filterOutJavaClass(File file, List<String> filePathList) {
