@@ -94,7 +94,6 @@ public class MainTransform extends Transform {
                     processJarInputs(jarInputs, outputProvider, incremental);
                 }
             }
-            println("\t\t transform jar complete, time spent:" + (System.currentTimeMillis() - t0) + "ms");
 
             for (TransformInput input : inputs) {
                 Collection<DirectoryInput> dirInputs = input.getDirectoryInputs();
@@ -102,7 +101,6 @@ public class MainTransform extends Transform {
                     processDirInputs(dirInputs, outputProvider, incremental);
                 }
             }
-            println("\t\t transform class complete, time spent:" + (System.currentTimeMillis() - t0) + "ms");
 
         } catch (Exception e) {
             e.printStackTrace();
