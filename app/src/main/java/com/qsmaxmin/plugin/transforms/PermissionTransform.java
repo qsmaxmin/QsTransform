@@ -1,7 +1,7 @@
 package com.qsmaxmin.plugin.transforms;
 
 import com.qsmaxmin.annotation.permission.Permission;
-import com.qsmaxmin.plugin.TransformHelper;
+import com.qsmaxmin.plugin.helper.TransformHelper;
 
 import javassist.CannotCompileException;
 import javassist.CtClass;

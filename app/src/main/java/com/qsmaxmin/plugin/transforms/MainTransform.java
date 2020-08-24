@@ -1,4 +1,4 @@
-package com.qsmaxmin.plugin;
+package com.qsmaxmin.plugin.transforms;
 
 import com.android.build.api.transform.DirectoryInput;
 import com.android.build.api.transform.Format;
@@ -13,11 +13,8 @@ import com.android.build.api.transform.TransformOutputProvider;
 import com.android.build.gradle.internal.pipeline.TransformManager;
 import com.android.utils.FileUtils;
 import com.qsmaxmin.annotation.properties.AutoProperty;
-import com.qsmaxmin.plugin.transforms.EventTransform;
-import com.qsmaxmin.plugin.transforms.PermissionTransform;
-import com.qsmaxmin.plugin.transforms.PropertyTransform;
-import com.qsmaxmin.plugin.transforms.ThreadPointTransform;
-import com.qsmaxmin.plugin.transforms.ViewBindTransform;
+import com.qsmaxmin.plugin.extension.MyExtension;
+import com.qsmaxmin.plugin.helper.TransformHelper;
 
 import org.gradle.api.Project;
 
@@ -37,12 +34,10 @@ import javassist.CtMethod;
 
 public class MainTransform extends Transform {
     private final Project     project;
-    private final Object      threadLocker;
     private       MyExtension myExtension;
 
     public MainTransform(Project project) {
         this.project = project;
-        this.threadLocker = new Object();
     }
 
     @Override

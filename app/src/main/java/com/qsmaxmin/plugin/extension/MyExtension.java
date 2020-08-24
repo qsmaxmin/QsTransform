@@ -1,8 +1,7 @@
-package com.qsmaxmin.plugin;
+package com.qsmaxmin.plugin.extension;
 
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
+import java.util.HashSet;
 import java.util.regex.Pattern;
 
 /**
@@ -11,9 +10,9 @@ import java.util.regex.Pattern;
  * @Description
  */
 public class MyExtension {
-    public boolean enable  = true;
-    public boolean showLog = true;
-    List<String> includes = new ArrayList<>();
+    public  boolean         enable   = true;
+    public  boolean         showLog  = true;
+    private HashSet<String> includes = new HashSet<>();
 
     public MyExtension() {
         includes.add(".*QsBase.*");

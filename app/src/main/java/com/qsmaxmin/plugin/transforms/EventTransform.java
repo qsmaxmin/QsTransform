@@ -1,7 +1,7 @@
 package com.qsmaxmin.plugin.transforms;
 
 import com.qsmaxmin.annotation.event.Subscribe;
-import com.qsmaxmin.plugin.TransformHelper;
+import com.qsmaxmin.plugin.helper.TransformHelper;
 
 import java.util.ArrayList;
 import java.util.List;

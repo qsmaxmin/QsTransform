@@ -3,7 +3,7 @@ package com.qsmaxmin.plugin.transforms;
 import com.qsmaxmin.annotation.bind.Bind;
 import com.qsmaxmin.annotation.bind.BindBundle;
 import com.qsmaxmin.annotation.bind.OnClick;
-import com.qsmaxmin.plugin.TransformHelper;
+import com.qsmaxmin.plugin.helper.TransformHelper;
 
 import javassist.CtClass;
 import javassist.CtField;

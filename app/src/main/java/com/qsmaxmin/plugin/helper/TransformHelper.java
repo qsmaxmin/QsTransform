@@ -1,4 +1,4 @@
-package com.qsmaxmin.plugin;
+package com.qsmaxmin.plugin.helper;
 
 import java.io.IOException;
 import java.io.InputStream;

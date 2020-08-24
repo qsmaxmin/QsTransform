@@ -2,7 +2,7 @@ package com.qsmaxmin.plugin.transforms;
 
 import com.android.build.api.transform.TransformException;
 import com.qsmaxmin.annotation.properties.Property;
-import com.qsmaxmin.plugin.TransformHelper;
+import com.qsmaxmin.plugin.helper.TransformHelper;
 
 import javassist.CtClass;
 import javassist.CtField;

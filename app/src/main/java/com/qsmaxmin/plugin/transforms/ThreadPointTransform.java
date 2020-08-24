@@ -2,7 +2,7 @@ package com.qsmaxmin.plugin.transforms;
 
 import com.qsmaxmin.annotation.thread.ThreadPoint;
 import com.qsmaxmin.annotation.thread.ThreadType;
-import com.qsmaxmin.plugin.TransformHelper;
+import com.qsmaxmin.plugin.helper.TransformHelper;
 
 import javassist.CtClass;
 import javassist.CtConstructor;
