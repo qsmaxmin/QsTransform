@@ -20,7 +20,8 @@ public class PermissionTransform {
     private static final String   CLASS_PERMISSION_CALLBACK = "com.qsmaxmin.qsbase.plugin.permission.PermissionCallbackListener";
     private static final String   METHOD_CHECK_PERMISSION   = "isPermissionGranted";
     private static final String   METHOD_CALLBACK           = "onPermissionCallback";
-    private static final String   METHOD_REQUEST_PERMISSION = "requestPermission";
+    private static final String   METHOD_GET_ACTIVITY       = "getActivityForPermission";
+    private static final String   METHOD_REQUEST_PERMISSION = "startRequestPermission";
     private static       CtClass  callbackInterface;
     private static       CtMethod callbackMethod;
 
@@ -43,7 +44,7 @@ public class PermissionTransform {
         for (CtMethod originalMethod : declaredMethods) {
             Object annotation = originalMethod.getAnnotation(Permission.class);
             if (annotation != null) {
-                if (!TransformHelper.hasMethod(clazz, METHOD_REQUEST_PERMISSION)) {
+                if (!TransformHelper.hasMethod(clazz, METHOD_GET_ACTIVITY)) {
                     throw new CannotCompileException("class(" + clazz.getSimpleName() + ") with @Permission should implement 'QsIPermission' and override method !!!");
                 }
 
@@ -170,7 +171,7 @@ public class PermissionTransform {
         String newMethodName = getNewMethodName(originalMethod, methodIndex);
         return "{boolean granted = " + CLASS_PERMISSION_HELPER + "." + METHOD_CHECK_PERMISSION + "(new String[]{" + permissionText + "});" +
                 "if(granted){" + newMethodName + "($$);}" +
-                "else{" + METHOD_REQUEST_PERMISSION + "(new " + callbackImpl + "($0" + args + "), new String[]{" + permissionText + "});}}";
+                "else{" + CLASS_PERMISSION_HELPER + ".getInstance()." + METHOD_REQUEST_PERMISSION + "(" + METHOD_GET_ACTIVITY + "(), new " + callbackImpl + "($0" + args + "), new String[]{" + permissionText + "});}}";
     }
 
     private static String getNewMethodName(CtMethod originalMethod, int methodIndex) {
