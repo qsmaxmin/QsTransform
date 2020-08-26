@@ -72,7 +72,7 @@ public class ViewBindTransform {
         CtClass[] viewClasses = new CtClass[]{TransformHelper.getInstance().makeClass(PATH_VIEW)};
         CtMethod ctMethod = new CtMethod(CtClass.voidType, METHOD_BIND_VIEW, viewClasses, clazz);
         ctMethod.setModifiers(Modifier.PUBLIC);
-        ctMethod.setBody("{" + clazz.getName() + "_QsBind.bindView($0, $1);}");
+        ctMethod.setBody("{" + getClassName(clazz) + "_QsBind.bindView($0, $1);}");
         clazz.addMethod(ctMethod);
     }
 
@@ -80,7 +80,17 @@ public class ViewBindTransform {
         CtClass[] bundleClass = new CtClass[]{TransformHelper.getInstance().makeClass(PATH_BUNDLE)};
         CtMethod ctMethod = new CtMethod(CtClass.voidType, METHOD_BIND_BUNDLE, bundleClass, clazz);
         ctMethod.setModifiers(Modifier.PUBLIC);
-        ctMethod.setBody("{" + clazz.getName() + "_QsBind.bindBundle($0, $1);}");
+        ctMethod.setBody("{" + getClassName(clazz) + "_QsBind.bindBundle($0, $1);}");
         clazz.addMethod(ctMethod);
+    }
+
+    private static String getClassName(CtClass clazz) {
+        String clazzName = clazz.getName();
+        int index = clazzName.indexOf('$');
+        if (index > 0) {
+            return clazzName.substring(0, index);
+        } else {
+            return clazzName;
+        }
     }
 }
