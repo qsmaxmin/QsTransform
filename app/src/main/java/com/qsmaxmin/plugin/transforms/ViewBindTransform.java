@@ -88,7 +88,10 @@ public class ViewBindTransform {
         String clazzName = clazz.getName();
         int index = clazzName.indexOf('$');
         if (index > 0) {
-            return clazzName.substring(0, index);
+            int from = clazzName.lastIndexOf('.');
+            String left = clazzName.substring(0, from + 1);
+            String right = clazzName.substring(index + 1);
+            return left + right;
         } else {
             return clazzName;
         }
