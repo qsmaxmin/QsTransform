@@ -11,7 +11,7 @@ import javassist.CtMethod;
 import javassist.Modifier;
 
 /**
- * @CreateBy administrator
+ * @CreateBy qsmaxmin
  * @Date 2020/8/13 16:36
  * @Description
  */
@@ -29,7 +29,7 @@ public class PermissionTransform {
         TransformHelper.println("\t\t> " + text);
     }
 
-    public static boolean transform(CtClass clazz, CtMethod[] declaredMethods, String rootPath, String filePath) throws Exception {
+    public static boolean transform(CtClass clazz, CtMethod[] declaredMethods, String rootPath) throws Exception {
         if (declaredMethods == null || declaredMethods.length == 0) return false;
         if (callbackInterface == null) {
             synchronized (PermissionTransform.class) {
@@ -65,7 +65,7 @@ public class PermissionTransform {
             }
         }
         if (methodIndex > 0) {
-            println("transform class(@Permission) :" + filePath);
+            println("transform class(@Permission) :" + clazz.getName());
         }
         return methodIndex > 0;
     }

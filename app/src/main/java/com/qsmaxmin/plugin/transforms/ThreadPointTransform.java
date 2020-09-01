@@ -11,7 +11,7 @@ import javassist.CtMethod;
 import javassist.Modifier;
 
 /**
- * @CreateBy administrator
+ * @CreateBy qsmaxmin
  * @Date 2020/8/13 16:36
  * @Description
  */
@@ -28,7 +28,7 @@ public class ThreadPointTransform {
         TransformHelper.println("\t\t> " + text);
     }
 
-    public static boolean transform(CtClass clazz, CtMethod[] declaredMethods, String rootPath, String filePath) throws Exception {
+    public static boolean transform(CtClass clazz, CtMethod[] declaredMethods, String rootPath) throws Exception {
         if (declaredMethods == null || declaredMethods.length == 0) return false;
         if (runnableClass == null) {
             synchronized (ThreadPointTransform.class) {
@@ -59,7 +59,7 @@ public class ThreadPointTransform {
         }
 
         if (methodIndex > 0) {
-            println("transform class(@ThreadPoint) :" + filePath);
+            println("transform class(@ThreadPoint) :" + clazz.getName());
         }
         return methodIndex > 0;
     }

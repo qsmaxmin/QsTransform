@@ -169,28 +169,6 @@ public class TransformHelper {
         enableLog = showLog;
     }
 
-    public static boolean isImplementsInterface(CtClass implClass, CtClass interfaceClass) {
-        try {
-
-
-            CtClass[] interfaces = implClass.getInterfaces();
-            if (interfaces == null || interfaces.length == 0) {
-                System.out.println("========>>interface is null");
-                return false;
-            }
-
-            for (CtClass c : interfaces) {
-                System.out.println("========>>" + c.getName() + "=====>>" + interfaceClass.getName());
-                if (c == interfaceClass) {
-                    return true;
-                }
-            }
-            return false;
-        } catch (NotFoundException ignored) {
-            return false;
-        }
-    }
-
     public static boolean isFieldHasAnnotation(CtField field, Class<?> annClass) {
         try {
             Object annotation = field.getAnnotation(annClass);

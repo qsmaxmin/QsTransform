@@ -11,7 +11,7 @@ import javassist.CtMethod;
 import javassist.Modifier;
 
 /**
- * @CreateBy administrator
+ * @CreateBy qsmaxmin
  * @Date 2020/8/13 16:36
  * @Description
  */
@@ -27,7 +27,7 @@ public class ViewBindTransform {
         TransformHelper.println("\t\t> " + text);
     }
 
-    public static boolean transform(CtClass clazz, CtMethod[] declaredMethods, CtField[] declaredFields, String filePath) throws Exception {
+    public static boolean transform(CtClass clazz, CtMethod[] declaredMethods, CtField[] declaredFields) throws Exception {
         int state = 0;
         if (declaredFields != null && declaredFields.length > 0) {
             for (CtField field : declaredFields) {
@@ -51,7 +51,7 @@ public class ViewBindTransform {
         }
 
         if (state != 0) {
-            println("transform class(@Bind, @OnClick...) :" + filePath);
+            println("transform class(@Bind, @OnClick...) :" + clazz.getName());
             if (clazz.isFrozen()) clazz.defrost();
             if (matched(state, STATE_BIND_VIEW)) {
                 addBindViewMethod(clazz);

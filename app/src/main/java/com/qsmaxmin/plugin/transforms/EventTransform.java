@@ -11,7 +11,7 @@ import javassist.CtClass;
 import javassist.CtMethod;
 
 /**
- * @CreateBy administrator
+ * @CreateBy qsmaxmin
  * @Date 2020/8/18 12:25
  * @Description
  */
@@ -26,7 +26,7 @@ public class EventTransform {
         TransformHelper.println("\t\t> " + text);
     }
 
-    public static boolean transform(CtClass clazz, CtMethod[] declaredMethods, String filePath) throws Exception {
+    public static boolean transform(CtClass clazz, CtMethod[] declaredMethods) throws Exception {
         List<CtMethod> list = null;
         for (CtMethod method : declaredMethods) {
             Object ann = method.getAnnotation(Subscribe.class);
@@ -37,7 +37,7 @@ public class EventTransform {
         }
 
         if (list != null && list.size() > 0) {
-            println("transform class(@Subscribe) :" + filePath);
+            println("transform class(@Subscribe) :" + clazz.getName());
             checkCanTransform(clazz);
 
             CtMethod bindMethod = new CtMethod(CtClass.voidType, METHOD_BIND, null, clazz);

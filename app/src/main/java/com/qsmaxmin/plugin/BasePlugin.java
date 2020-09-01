@@ -43,10 +43,10 @@ abstract class BasePlugin implements Plugin<Project> {
 
     private void addCommonDependencies(DependencyHandler dependencies, boolean isDebug) {
         if (isDebug) {
-            dependencies.add("implementation", "com.qsmaxmin.annotation:QsAnnotation:9.9.9");
+            dependencies.add("implementation", "com.github.qsmaxmin:QsAnnotation:1.0.2");
             dependencies.add("annotationProcessor", "com.qsmaxmin.apt:QsPlugin:9.9.9");
         } else {
-            dependencies.add("implementation", "com.github.qsmaxmin:QsAnnotation:1.0.1");
+            dependencies.add("implementation", "com.github.qsmaxmin:QsAnnotation:1.0.2");
             dependencies.add("annotationProcessor", "com.github.qsmaxmin:QsPlugin:10.0.1");
         }
     }

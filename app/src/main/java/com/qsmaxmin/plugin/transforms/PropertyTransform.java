@@ -9,7 +9,7 @@ import javassist.CtField;
 import javassist.CtMethod;
 
 /**
- * @CreateBy administrator
+ * @CreateBy qsmaxmin
  * @Date 2020/8/13 14:50
  * @Description
  */
@@ -22,8 +22,8 @@ public class PropertyTransform {
         TransformHelper.println("\t\t> " + text);
     }
 
-    public static void transform(CtClass clazz, String rootPath, String filePath) throws Exception {
-        println("transform class(@AutoProperty) :" + filePath);
+    public static void transform(CtClass clazz, String rootPath) throws Exception {
+        println("transform class(@AutoProperty) :" + clazz.getName());
         if (clazz.isFrozen()) clazz.defrost();
 
         CtMethod baseReadMethod = null;
@@ -40,7 +40,7 @@ public class PropertyTransform {
             }
         }
         if (baseReadMethod == null || baseSaveMethod == null || baseClearMethod == null) {
-            throw new TransformException("transform error, class '" + filePath + "' should extends 'QsProperties' !!!");
+            throw new TransformException("transform error, class '" + clazz.getName() + "' should extends 'QsProperties' !!!");
         }
         CtMethod readMethod = new CtMethod(baseReadMethod, clazz, null);
         CtMethod saveMethod = new CtMethod(baseSaveMethod, clazz, null);

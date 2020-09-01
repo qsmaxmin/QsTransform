@@ -12,6 +12,7 @@ import com.android.build.api.transform.TransformInvocation;
 import com.android.build.api.transform.TransformOutputProvider;
 import com.android.build.gradle.internal.pipeline.TransformManager;
 import com.android.utils.FileUtils;
+import com.qsmaxmin.annotation.presenter.Presenter;
 import com.qsmaxmin.annotation.properties.AutoProperty;
 import com.qsmaxmin.plugin.extension.MyExtension;
 import com.qsmaxmin.plugin.helper.TransformHelper;
@@ -107,7 +108,7 @@ public class MainTransform extends Transform {
      * 目录文件夹是我们的源代码和生成的R文件和BuildConfig文件等
      */
     private void processDirInputs(Collection<DirectoryInput> directoryInputs, TransformOutputProvider outputProvider, boolean incremental) throws Exception {
-        HashMap<String, List<String>> totalChangedMap = new HashMap<>();
+        HashMap<String, List<CtClass>> totalChangedMap = new HashMap<>();
         int totalChangedSize = 0;
 
         for (DirectoryInput dirInput : directoryInputs) {
@@ -115,7 +116,7 @@ public class MainTransform extends Transform {
             File destDir = outputProvider.getContentLocation(inputDir.getAbsolutePath(), dirInput.getContentTypes(), dirInput.getScopes(), Format.DIRECTORY);
             appendDirClassPath(inputDir.getAbsolutePath());
 
-            ArrayList<String> changedFileList = null;
+            ArrayList<CtClass> changedFileList = null;
             if (incremental) {
                 Map<File, Status> changedFiles = dirInput.getChangedFiles();
                 Set<File> fileSet = changedFiles.keySet();
@@ -132,16 +133,21 @@ public class MainTransform extends Transform {
                                 totalChangedMap.put(destDir.getAbsolutePath(), changedFileList);
                             }
                             totalChangedSize++;
-                            changedFileList.add(destFilePath);
+                            changedFileList.add(createCtClass(destFilePath));
                         }
                     }
 
                 }
             } else {
                 FileUtils.copyDirectory(inputDir, destDir);
+                ArrayList<String> tempList = new ArrayList<>();
+                filterOutJavaClass(destDir, tempList);
+                totalChangedSize += tempList.size();
+
                 changedFileList = new ArrayList<>();
-                filterOutJavaClass(destDir, changedFileList);
-                totalChangedSize += changedFileList.size();
+                for (String path : tempList) {
+                    changedFileList.add(createCtClass(path));
+                }
                 totalChangedMap.put(destDir.getAbsolutePath(), changedFileList);
             }
         }
@@ -153,9 +159,9 @@ public class MainTransform extends Transform {
 
         int transformedCount = 0;
         for (String rootPath : totalChangedMap.keySet()) {
-            List<String> strings = totalChangedMap.get(rootPath);
-            for (String filePath : strings) {
-                boolean transformed = processJavaClassFile(rootPath, filePath);
+            List<CtClass> classList = totalChangedMap.get(rootPath);
+            for (CtClass ctClass : classList) {
+                boolean transformed = processJavaClassFile(rootPath, ctClass);
                 if (transformed) transformedCount++;
             }
         }
@@ -175,31 +181,32 @@ public class MainTransform extends Transform {
         }
     }
 
-
-    private boolean processJavaClassFile(String rootPath, String filePath) throws Exception {
-        boolean transformed = false;
+    private CtClass createCtClass(String filePath) throws Exception {
         FileInputStream fis = new FileInputStream(filePath);
-        CtClass clazz = TransformHelper.getInstance().makeClass(fis, false);
+        CtClass ctClass = TransformHelper.getInstance().makeClass(fis, false);
         fis.close();
+        return ctClass;
+    }
 
+    private boolean processJavaClassFile(String rootPath, CtClass clazz) throws Exception {
+        boolean transformed = false;
         if (clazz == null) {
-            println("\t\t> class not found: " + filePath);
             return false;
         }
-
         if (clazz.getAnnotation(AutoProperty.class) != null) {
             transformed = true;
-            PropertyTransform.transform(clazz, rootPath, filePath);
+            PropertyTransform.transform(clazz, rootPath);
         } else {
             CtMethod[] declaredMethods = clazz.getDeclaredMethods();
             CtField[] declaredFields = clazz.getDeclaredFields();
 
-            boolean hasEvent = EventTransform.transform(clazz, declaredMethods, filePath);
-            boolean hasViewBind = ViewBindTransform.transform(clazz, declaredMethods, declaredFields, filePath);
-            boolean hasPermission = PermissionTransform.transform(clazz, declaredMethods, rootPath, filePath);
-            boolean hasThreadPoint = ThreadPointTransform.transform(clazz, declaredMethods, rootPath, filePath);
+            boolean hasPresenter = PresenterTransform.transform( clazz);
+            boolean hasEvent = EventTransform.transform(clazz, declaredMethods);
+            boolean hasViewBind = ViewBindTransform.transform(clazz, declaredMethods, declaredFields);
+            boolean hasPermission = PermissionTransform.transform(clazz, declaredMethods, rootPath);
+            boolean hasThreadPoint = ThreadPointTransform.transform(clazz, declaredMethods, rootPath);
 
-            if (hasEvent || hasViewBind || hasPermission || hasThreadPoint) {
+            if (hasPresenter || hasEvent || hasViewBind || hasPermission || hasThreadPoint) {
                 transformed = true;
                 clazz.writeFile(rootPath);
             }
@@ -228,15 +235,15 @@ public class MainTransform extends Transform {
             } else {
                 FileUtils.copyFile(inputFile, destFile);
             }
-            checkShouldAppendJarPath(inputFile, destFile);
+            checkShouldAppendJarPath(inputFile);
         }
     }
 
-    private void checkShouldAppendJarPath(File inputFile, File destFile) throws Exception {
+    private void checkShouldAppendJarPath(File inputFile) throws Exception {
         String jarPath = inputFile.getAbsolutePath();
         if (shouldAppendClassPath(jarPath)) {
             println("\t> appendClassPath(jar) :" + jarPath);
-            TransformHelper.getInstance().appendClassPath(destFile.getAbsolutePath());
+            TransformHelper.getInstance().appendClassPath(jarPath);
         }
     }
 
