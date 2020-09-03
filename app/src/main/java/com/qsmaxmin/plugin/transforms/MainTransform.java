@@ -12,7 +12,6 @@ import com.android.build.api.transform.TransformInvocation;
 import com.android.build.api.transform.TransformOutputProvider;
 import com.android.build.gradle.internal.pipeline.TransformManager;
 import com.android.utils.FileUtils;
-import com.qsmaxmin.annotation.presenter.Presenter;
 import com.qsmaxmin.annotation.properties.AutoProperty;
 import com.qsmaxmin.plugin.extension.MyExtension;
 import com.qsmaxmin.plugin.helper.TransformHelper;
@@ -200,7 +199,7 @@ public class MainTransform extends Transform {
             CtMethod[] declaredMethods = clazz.getDeclaredMethods();
             CtField[] declaredFields = clazz.getDeclaredFields();
 
-            boolean hasPresenter = PresenterTransform.transform( clazz);
+            boolean hasPresenter = PresenterTransform.transform(clazz);
             boolean hasEvent = EventTransform.transform(clazz, declaredMethods);
             boolean hasViewBind = ViewBindTransform.transform(clazz, declaredMethods, declaredFields);
             boolean hasPermission = PermissionTransform.transform(clazz, declaredMethods, rootPath);
@@ -241,7 +240,7 @@ public class MainTransform extends Transform {
 
     private void checkShouldAppendJarPath(File inputFile) throws Exception {
         String jarPath = inputFile.getAbsolutePath();
-        if (shouldAppendClassPath(jarPath)) {
+        if (myExtension.shouldAppendClassPath(jarPath)) {
             println("\t> appendClassPath(jar) :" + jarPath);
             TransformHelper.getInstance().appendClassPath(jarPath);
         }
@@ -256,8 +255,5 @@ public class MainTransform extends Transform {
         TransformHelper.println(text);
     }
 
-    public boolean shouldAppendClassPath(String classPath) {
-        return myExtension.shouldAppendClassPath(classPath);
-    }
 
 }

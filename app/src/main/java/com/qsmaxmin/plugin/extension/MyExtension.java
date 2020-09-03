@@ -10,9 +10,10 @@ import java.util.regex.Pattern;
  * @Description
  */
 public class MyExtension {
-    public  boolean         enable   = true;
-    public  boolean         showLog  = true;
-    private HashSet<String> includes = new HashSet<>();
+    public  boolean         enable        = true;
+    public  boolean         showLog       = true;
+    public  boolean         fullClassPath = true;
+    private HashSet<String> includes      = new HashSet<>();
 
     public MyExtension() {
         includes.add(".*QsBase.*");
@@ -29,17 +30,22 @@ public class MyExtension {
         return "QsPlugin{" +
                 "enable=" + enable +
                 ", showLog=" + showLog +
+                ", fullClassPath=" + fullClassPath +
                 ", includes=" + includes +
                 '}';
     }
 
     public boolean shouldAppendClassPath(String classPath) {
-        for (String filter : includes) {
-            Pattern compile = Pattern.compile(filter);
-            if (compile.matcher(classPath).matches()) {
-                return true;
+        if (fullClassPath) {
+            return true;
+        } else {
+            for (String filter : includes) {
+                Pattern compile = Pattern.compile(filter);
+                if (compile.matcher(classPath).matches()) {
+                    return true;
+                }
             }
+            return false;
         }
-        return false;
     }
 }
