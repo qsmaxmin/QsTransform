@@ -44,18 +44,6 @@ MVP架构+AOP面向切面编程，摒弃反射、代理等操作，稳定性和�
             ...
         }
 
-        //插件参数配置
-        QsPlugin {
-            //是否激活插件，默认true
-            enable = true
-
-            //build时是否展示日志，默认true
-            showLog = true
-
-            //为了提升编译速度，插件不主动检测依赖的jar或module
-            //如果项目里有依赖的module，则将依赖的module名称添加到此处，用‘,’隔开，支持正则匹配
-            include ".*moduleA.*",".*moduleB.*"
-        }
         完成以上两步，SDK依赖环境就算搭建完毕了。
 
 
