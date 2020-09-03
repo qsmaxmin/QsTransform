@@ -48,7 +48,7 @@ public class PermissionTransform {
                     throw new CannotCompileException("class(" + clazz.getSimpleName() + ") with @Permission should implement 'QsIPermission' and override method !!!");
                 }
                 if (Modifier.isStatic(originalMethod.getModifiers())) {
-                    throw new CannotCompileException("class(" + clazz.getSimpleName() + ", method :" + originalMethod.getName() + ") with @Permission should not static !!!");
+                    throw new CannotCompileException("class(" + clazz.getSimpleName() + ", method :" + originalMethod.getName() + ") with @Permission should not be static !!!");
                 }
 
                 Permission permission = (Permission) annotation;
