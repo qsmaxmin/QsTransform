@@ -49,11 +49,12 @@ public class ThreadPointTransform {
                 addNewMethod(clazz, originalMethod, methodIndex);
 
                 CtClass implClass = createRunnableClass(clazz, originalMethod, methodIndex);
+
                 String code = generateOriginalMethodCode(originalMethod, implClass.getName(), type);
+
                 originalMethod.setBody(code);
 
                 implClass.writeFile(rootPath);
-
                 methodIndex++;
             }
         }
@@ -74,44 +75,76 @@ public class ThreadPointTransform {
 
         CtClass[] parameterTypes = originalMethod.getParameterTypes();
 
-        CtField field = new CtField(clazz, "target", implClass);
-        field.setModifiers(Modifier.PRIVATE);
-        TransformHelper.addFiled(implClass, field);
-        CtClass[] params;
-        if (parameterTypes != null && parameterTypes.length > 0) {
-            for (int i = 0; i < parameterTypes.length; i++) {
-                CtClass pt = parameterTypes[i];
-                CtField f = new CtField(pt, "p" + i, implClass);
-                f.setModifiers(Modifier.PRIVATE);
-                TransformHelper.addFiled(implClass, f);
+        if (Modifier.isStatic(originalMethod.getModifiers())) {
+            CtConstructor constructor = new CtConstructor(parameterTypes, implClass);
+            if (parameterTypes != null && parameterTypes.length > 0) {
+                StringBuilder sb = new StringBuilder("{");
+                for (int i = 0; i < parameterTypes.length; i++) {
+                    CtClass pt = parameterTypes[i];
+                    CtField f = new CtField(pt, "p" + i, implClass);
+                    f.setModifiers(Modifier.PRIVATE);
+                    TransformHelper.addFiled(implClass, f);
+
+                    sb.append("$0.p").append(i).append(" = $").append(i + 1).append(';');
+                }
+                constructor.setBody(sb.append('}').toString());
             }
-            params = new CtClass[parameterTypes.length + 1];
-            params[0] = clazz;
-            System.arraycopy(parameterTypes, 0, params, 1, parameterTypes.length);
+            TransformHelper.addConstructor(implClass, constructor);
+
+            CtMethod runMethodImpl = new CtMethod(runMethod, implClass, null);
+            String newMethodName = getNewMethodName(originalMethod, methodIndex);
+            runMethodImpl.setBody(createImplMethodBodyStatic(clazz.getName(), newMethodName, parameterTypes));
+            TransformHelper.addMethod(implClass, runMethodImpl);
+
         } else {
-            params = new CtClass[]{clazz};
+            CtField field = new CtField(clazz, "target", implClass);
+            field.setModifiers(Modifier.PRIVATE);
+            TransformHelper.addFiled(implClass, field);
+            CtClass[] params;
+            if (parameterTypes != null && parameterTypes.length > 0) {
+                for (int i = 0; i < parameterTypes.length; i++) {
+                    CtClass pt = parameterTypes[i];
+                    CtField f = new CtField(pt, "p" + i, implClass);
+                    f.setModifiers(Modifier.PRIVATE);
+                    TransformHelper.addFiled(implClass, f);
+                }
+                params = new CtClass[parameterTypes.length + 1];
+                params[0] = clazz;
+                System.arraycopy(parameterTypes, 0, params, 1, parameterTypes.length);
+            } else {
+                params = new CtClass[]{clazz};
+            }
+
+            CtConstructor constructor = new CtConstructor(params, implClass);
+            StringBuilder sb = new StringBuilder("{$0.target = $1;");
+            for (int i = 1; i < params.length; i++) {
+                sb.append("$0.p").append(i - 1).append(" = $").append(i + 1).append(';');
+            }
+            constructor.setBody(sb.append('}').toString());
+            TransformHelper.addConstructor(implClass, constructor);
+
+            CtMethod runMethodImpl = new CtMethod(runMethod, implClass, null);
+            String newMethodName = getNewMethodName(originalMethod, methodIndex);
+            runMethodImpl.setBody(createImplMethodBody(newMethodName, parameterTypes));
+            TransformHelper.addMethod(implClass, runMethodImpl);
         }
-
-        CtConstructor constructor = new CtConstructor(params, implClass);
-        StringBuilder sb = new StringBuilder("{$0.target = $1;");
-        for (int i = 1; i < params.length; i++) {
-            sb.append("$0.p").append(i - 1).append(" = $").append(i + 1).append(';');
-        }
-        constructor.setBody(sb.append('}').toString());
-        TransformHelper.addConstructor(implClass, constructor);
-
-
-        CtMethod runMethodImpl = new CtMethod(runMethod, implClass, null);
-        String newMethodName = getNewMethodName(originalMethod, methodIndex);
-        runMethodImpl.setBody(createImplBody(newMethodName, parameterTypes));
-
-        TransformHelper.addMethod(implClass, runMethodImpl);
-
         return implClass;
     }
 
+    private static String createImplMethodBodyStatic(String className, String newMethodName, CtClass[] parameterTypes) {
+        if (parameterTypes != null && parameterTypes.length > 0) {
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < parameterTypes.length; i++) {
+                sb.append("$0.p").append(i);
+                if (i != parameterTypes.length - 1) sb.append(',');
+            }
+            return className + "." + newMethodName + "(" + sb.toString() + ");";
+        } else {
+            return className + "." + newMethodName + "();";
+        }
+    }
 
-    private static String createImplBody(String newMethodName, CtClass[] parameterTypes) {
+    private static String createImplMethodBody(String newMethodName, CtClass[] parameterTypes) {
         if (parameterTypes != null && parameterTypes.length > 0) {
             StringBuilder sb = new StringBuilder();
             for (int i = 0; i < parameterTypes.length; i++) {
@@ -129,21 +162,28 @@ public class ThreadPointTransform {
      * copy original method body to new method
      */
     private static void addNewMethod(CtClass clazz, CtMethod originalMethod, int methodIndex) throws Exception {
+        boolean isStatic = Modifier.isStatic(originalMethod.getModifiers());
         String newMethodName = getNewMethodName(originalMethod, methodIndex);
-
         CtMethod newMethod = new CtMethod(originalMethod, clazz, null);
         newMethod.setName(newMethodName);
-        newMethod.setModifiers(Modifier.PUBLIC);
+        if (isStatic) {
+            newMethod.setModifiers(Modifier.PUBLIC | Modifier.STATIC);
+        } else {
+            newMethod.setModifiers(Modifier.PUBLIC);
+        }
         TransformHelper.addMethod(clazz, newMethod);
     }
 
     private static String generateOriginalMethodCode(CtMethod originalMethod, String runnableImpl, ThreadType type) throws Exception {
+        boolean isStatic = Modifier.isStatic(originalMethod.getModifiers());
+
         String args = "";
         CtClass[] parameterTypes = originalMethod.getParameterTypes();
         if (parameterTypes != null && parameterTypes.length > 0) {
-            StringBuilder sb = new StringBuilder();
+            StringBuilder sb = new StringBuilder(isStatic ? "" : "$0,");
             for (int i = 0; i < parameterTypes.length; i++) {
-                sb.append(",$").append(i + 1);
+                sb.append('$').append(i + 1);
+                if (i != parameterTypes.length - 1) sb.append(',');
             }
             args = sb.toString();
         }
@@ -162,7 +202,8 @@ public class ThreadPointTransform {
                 executeName = methodNameSingleThread;
                 break;
         }
-        return CLASS_THREAD_HELPER + "." + executeName + "(new " + runnableImpl + "($0" + args + "));";
+
+        return CLASS_THREAD_HELPER + "." + executeName + "(new " + runnableImpl + "(" + args + "));";
     }
 
     private static String getNewMethodName(CtMethod originalMethod, int methodIndex) {
