@@ -46,12 +46,12 @@ public class ThreadPointTransform {
                 ThreadPoint threadPoint = (ThreadPoint) ann;
                 ThreadType type = threadPoint.value();
 
-                addNewMethod(clazz, originalMethod, methodIndex);
+                boolean isStaticMethod = Modifier.isStatic(originalMethod.getModifiers());
+                println("------>>> :" + clazz.getName() + ", " + originalMethod.getName() + ", " + isStaticMethod);
 
-                CtClass implClass = createRunnableClass(clazz, originalMethod, methodIndex);
-
-                String code = generateOriginalMethodCode(originalMethod, implClass.getName(), type);
-
+                addNewMethod(clazz, originalMethod, methodIndex, isStaticMethod);
+                CtClass implClass = createRunnableClass(clazz, originalMethod, methodIndex, isStaticMethod);
+                String code = generateOriginalMethodCode(originalMethod, implClass.getName(), type, isStaticMethod);
                 originalMethod.setBody(code);
 
                 implClass.writeFile(rootPath);
@@ -66,7 +66,7 @@ public class ThreadPointTransform {
     }
 
 
-    private static CtClass createRunnableClass(CtClass clazz, CtMethod originalMethod, int methodIndex) throws Exception {
+    private static CtClass createRunnableClass(CtClass clazz, CtMethod originalMethod, int methodIndex, boolean isStaticMethod) throws Exception {
         String implClassName = clazz.getName() + "_QsThread" + methodIndex;
         CtClass implClass = TransformHelper.getInstance().makeClassIfNotExists(implClassName);
         if (implClass.isFrozen()) implClass.defrost();
@@ -75,7 +75,7 @@ public class ThreadPointTransform {
 
         CtClass[] parameterTypes = originalMethod.getParameterTypes();
 
-        if (Modifier.isStatic(originalMethod.getModifiers())) {
+        if (isStaticMethod) {
             CtConstructor constructor = new CtConstructor(parameterTypes, implClass);
             if (parameterTypes != null && parameterTypes.length > 0) {
                 StringBuilder sb = new StringBuilder("{");
@@ -161,8 +161,7 @@ public class ThreadPointTransform {
     /**
      * copy original method body to new method
      */
-    private static void addNewMethod(CtClass clazz, CtMethod originalMethod, int methodIndex) throws Exception {
-        boolean isStatic = Modifier.isStatic(originalMethod.getModifiers());
+    private static void addNewMethod(CtClass clazz, CtMethod originalMethod, int methodIndex, boolean isStatic) throws Exception {
         String newMethodName = getNewMethodName(originalMethod, methodIndex);
         CtMethod newMethod = new CtMethod(originalMethod, clazz, null);
         newMethod.setName(newMethodName);
@@ -174,13 +173,11 @@ public class ThreadPointTransform {
         TransformHelper.addMethod(clazz, newMethod);
     }
 
-    private static String generateOriginalMethodCode(CtMethod originalMethod, String runnableImpl, ThreadType type) throws Exception {
-        boolean isStatic = Modifier.isStatic(originalMethod.getModifiers());
-
+    private static String generateOriginalMethodCode(CtMethod originalMethod, String runnableImpl, ThreadType type, boolean isStaticMethod) throws Exception {
         String args = "";
         CtClass[] parameterTypes = originalMethod.getParameterTypes();
         if (parameterTypes != null && parameterTypes.length > 0) {
-            StringBuilder sb = new StringBuilder(isStatic ? "" : "$0,");
+            StringBuilder sb = new StringBuilder();
             for (int i = 0; i < parameterTypes.length; i++) {
                 sb.append('$').append(i + 1);
                 if (i != parameterTypes.length - 1) sb.append(',');
@@ -202,8 +199,15 @@ public class ThreadPointTransform {
                 executeName = methodNameSingleThread;
                 break;
         }
-
-        return CLASS_THREAD_HELPER + "." + executeName + "(new " + runnableImpl + "(" + args + "));";
+        if (isStaticMethod) {
+            return CLASS_THREAD_HELPER + "." + executeName + "(new " + runnableImpl + "(" + args + "));";
+        } else {
+            if (args.length() == 0) {
+                return CLASS_THREAD_HELPER + "." + executeName + "(new " + runnableImpl + "($0));";
+            } else {
+                return CLASS_THREAD_HELPER + "." + executeName + "(new " + runnableImpl + "($0," + args + "));";
+            }
+        }
     }
 
     private static String getNewMethodName(CtMethod originalMethod, int methodIndex) {
