@@ -209,7 +209,7 @@ public class MainTransform extends Transform {
 
             boolean hasPresenter = PresenterTransform.transform(clazz);
             boolean hasEvent = EventTransform.transform(clazz, declaredMethods);
-            boolean hasViewBind = ViewBindTransform2.transform(clazz, declaredMethods, declaredFields, rootPath);
+            boolean hasViewBind = ViewBindTransform.transform(clazz, declaredMethods, declaredFields, rootPath);
             boolean hasPermission = PermissionTransform.transform(clazz, declaredMethods, rootPath);
             boolean hasThreadPoint = ThreadPointTransform.transform(clazz, declaredMethods, rootPath);
 

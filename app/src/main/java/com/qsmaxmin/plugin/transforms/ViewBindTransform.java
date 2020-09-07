@@ -19,7 +19,7 @@ import javassist.Modifier;
  * @Date 2020/8/13 16:36
  * @Description
  */
-public class ViewBindTransform2 {
+public class ViewBindTransform {
     private static final String   METHOD_BIND_VIEW   = "bindViewByQsPlugin";
     private static final String   METHOD_BIND_BUNDLE = "bindBundleByQsPlugin";
     private static final String   PATH_VIEW          = "android.view.View";
