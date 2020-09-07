@@ -10,6 +10,7 @@ import com.android.build.api.transform.TransformException;
 import com.android.build.api.transform.TransformInput;
 import com.android.build.api.transform.TransformInvocation;
 import com.android.build.api.transform.TransformOutputProvider;
+import com.android.build.gradle.AppExtension;
 import com.android.build.gradle.internal.pipeline.TransformManager;
 import com.android.utils.FileUtils;
 import com.qsmaxmin.annotation.properties.AutoProperty;
@@ -17,6 +18,7 @@ import com.qsmaxmin.plugin.extension.MyExtension;
 import com.qsmaxmin.plugin.helper.TransformHelper;
 
 import org.gradle.api.Project;
+import org.gradle.api.file.FileCollection;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -31,6 +33,7 @@ import java.util.Set;
 import javassist.CtClass;
 import javassist.CtField;
 import javassist.CtMethod;
+import javassist.NotFoundException;
 
 public class MainTransform extends Transform {
     private final Project     project;
@@ -72,6 +75,8 @@ public class MainTransform extends Transform {
     public void transform(TransformInvocation transformInvocation) throws TransformException, InterruptedException, IOException {
         super.transform(transformInvocation);
         myExtension = project.getExtensions().findByType(MyExtension.class);
+
+
         if (myExtension == null || !myExtension.enable) return;
 
         TransformHelper.enableLog(myExtension.showLog);
@@ -83,6 +88,8 @@ public class MainTransform extends Transform {
 
         println("\t> QsTransform started.......incremental:" + incremental + ", input size:" + inputs.size() + ", params:" + myExtension.toString());
         try {
+            appendAndroidJar();
+
             for (TransformInput input : inputs) {
                 Collection<JarInput> jarInputs = input.getJarInputs();
                 if (jarInputs != null && jarInputs.size() > 0) {
@@ -102,6 +109,7 @@ public class MainTransform extends Transform {
             throw new TransformException(e);
         }
     }
+
 
     /**
      * 目录文件夹是我们的源代码和生成的R文件和BuildConfig文件等
@@ -201,7 +209,7 @@ public class MainTransform extends Transform {
 
             boolean hasPresenter = PresenterTransform.transform(clazz);
             boolean hasEvent = EventTransform.transform(clazz, declaredMethods);
-            boolean hasViewBind = ViewBindTransform.transform(clazz, declaredMethods, declaredFields);
+            boolean hasViewBind = ViewBindTransform2.transform(clazz, declaredMethods, declaredFields, rootPath);
             boolean hasPermission = PermissionTransform.transform(clazz, declaredMethods, rootPath);
             boolean hasThreadPoint = ThreadPointTransform.transform(clazz, declaredMethods, rootPath);
 
@@ -235,6 +243,20 @@ public class MainTransform extends Transform {
                 FileUtils.copyFile(inputFile, destFile);
             }
             checkShouldAppendJarPath(inputFile);
+        }
+    }
+
+    /**
+     * 添加Android jar
+     */
+    private void appendAndroidJar() throws NotFoundException {
+        FileCollection collection = project.getExtensions().getByType(AppExtension.class).getMockableAndroidJar();
+        Set<File> files = collection.getFiles();
+        for (File f : files) {
+            String path = f.getAbsolutePath();
+            TransformHelper.getInstance().appendClassPath(path);
+            println("\t> appendClassPath(Android) :" + path);
+
         }
     }
 

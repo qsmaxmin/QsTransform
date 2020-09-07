@@ -45,9 +45,7 @@ public class ThreadPointTransform {
             if (ann != null) {
                 ThreadPoint threadPoint = (ThreadPoint) ann;
                 ThreadType type = threadPoint.value();
-
                 boolean isStaticMethod = Modifier.isStatic(originalMethod.getModifiers());
-                println("------>>> :" + clazz.getName() + ", " + originalMethod.getName() + ", " + isStaticMethod);
 
                 addNewMethod(clazz, originalMethod, methodIndex, isStaticMethod);
                 CtClass implClass = createRunnableClass(clazz, originalMethod, methodIndex, isStaticMethod);
