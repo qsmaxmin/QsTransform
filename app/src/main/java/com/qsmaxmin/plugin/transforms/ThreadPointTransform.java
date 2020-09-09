@@ -86,6 +86,8 @@ public class ThreadPointTransform {
                     sb.append("$0.p").append(i).append(" = $").append(i + 1).append(';');
                 }
                 constructor.setBody(sb.append('}').toString());
+            } else {
+                constructor.setBody("{}");
             }
             TransformHelper.addConstructor(implClass, constructor);
 
