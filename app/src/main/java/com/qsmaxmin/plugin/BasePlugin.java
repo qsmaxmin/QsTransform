@@ -22,7 +22,7 @@ abstract class BasePlugin implements Plugin<Project> {
         project.getExtensions().create("QsPlugin", MyExtension.class);
 
         DependencyHandler dependencies = project.getDependencies();
-        addQsBaseDependencies(dependencies, isDebug());
+        addQsBaseDependencies(dependencies);
         dependencies.add("implementation", "com.github.qsmaxmin:QsAnnotation:1.0.2");
 
         if (project.getPlugins().hasPlugin(AppPlugin.class)) {
@@ -31,7 +31,7 @@ abstract class BasePlugin implements Plugin<Project> {
         }
     }
 
-    private void addQsBaseDependencies(DependencyHandler dependencies, boolean isDebug) {
+    private void addQsBaseDependencies(DependencyHandler dependencies) {
         if (addQsBaseRepositories()) {
             if (isDebug()) {
                 dependencies.add("implementation", "com.qsmaxmin.qsbase:QsBase:9.9.9");
