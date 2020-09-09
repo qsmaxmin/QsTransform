@@ -41,9 +41,7 @@ abstract class BasePlugin implements Plugin<Project> {
         }
     }
 
-    protected boolean isDebug() {
-        return false;
-    }
+    protected abstract boolean isDebug();
 
     protected abstract boolean addQsBaseRepositories();
 }

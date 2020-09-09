@@ -6,6 +6,9 @@ package com.qsmaxmin.plugin;
  * @Description
  */
 public class MainCompletePlugin extends BasePlugin {
+    @Override protected boolean isDebug() {
+        return false;
+    }
 
     @Override protected boolean addQsBaseRepositories() {
         return true;
