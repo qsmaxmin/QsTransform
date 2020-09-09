@@ -22,10 +22,8 @@ abstract class BasePlugin implements Plugin<Project> {
         project.getExtensions().create("QsPlugin", MyExtension.class);
 
         DependencyHandler dependencies = project.getDependencies();
-        if (addQsBaseRepositories()) {
-            addQsBaseDependencies(dependencies, isDebug());
-        }
-        addCommonDependencies(dependencies, isDebug());
+        addQsBaseDependencies(dependencies, isDebug());
+        dependencies.add("implementation", "com.github.qsmaxmin:QsAnnotation:1.0.2");
 
         if (project.getPlugins().hasPlugin(AppPlugin.class)) {
             MainTransform transform = new MainTransform(project);
@@ -34,22 +32,16 @@ abstract class BasePlugin implements Plugin<Project> {
     }
 
     private void addQsBaseDependencies(DependencyHandler dependencies, boolean isDebug) {
-        if (isDebug) {
-            dependencies.add("implementation", "com.qsmaxmin.qsbase:QsBase:9.9.9");
-        } else {
-            dependencies.add("implementation", "com.github.qsmaxmin:QsBase:10.0.7");
+        if (addQsBaseRepositories()) {
+            if (isDebug()) {
+                dependencies.add("implementation", "com.qsmaxmin.qsbase:QsBase:9.9.9");
+            } else {
+                dependencies.add("implementation", "com.github.qsmaxmin:QsBase:10.0.7");
+            }
         }
     }
 
-    private void addCommonDependencies(DependencyHandler dependencies, boolean isDebug) {
-        if (isDebug) {
-            dependencies.add("implementation", "com.github.qsmaxmin:QsAnnotation:1.0.2");
-        } else {
-            dependencies.add("implementation", "com.github.qsmaxmin:QsAnnotation:1.0.2");
-        }
-    }
-
-    private boolean isDebug() {
+    protected boolean isDebug() {
         return false;
     }
 
