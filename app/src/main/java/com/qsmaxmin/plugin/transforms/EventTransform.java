@@ -40,25 +40,35 @@ public class EventTransform {
             println("transform class(@Subscribe) :" + clazz.getName());
             checkCanTransform(clazz);
 
-            CtMethod bindMethod = new CtMethod(CtClass.voidType, METHOD_BIND, null, clazz);
             String bindCode = getBindMethodBodyCode(clazz, list);
-            bindMethod.setBody(bindCode);
-            TransformHelper.addMethod(clazz, bindMethod);
 
+            CtMethod bindMethod = TransformHelper.getDeclaredMethod(clazz, METHOD_BIND);
+            if (bindMethod != null) {
+                bindMethod.insertAfter(bindCode);
+            } else {
+                bindMethod = new CtMethod(CtClass.voidType, METHOD_BIND, null, clazz);
+                bindMethod.setBody(bindCode);
+                TransformHelper.addMethod(clazz, bindMethod);
+            }
 
-            CtMethod unbindMethod = new CtMethod(CtClass.voidType, METHOD_UNBIND, null, clazz);
             String unbindCode = getUnbindMethodBodyCode(clazz, list);
-            unbindMethod.setBody(unbindCode);
-            TransformHelper.addMethod(clazz, unbindMethod);
+            CtMethod unbindMethod = TransformHelper.getDeclaredMethod(clazz, METHOD_UNBIND);
+            if (unbindMethod != null) {
+                unbindMethod.insertAfter(unbindCode);
+            } else {
+                unbindMethod = new CtMethod(CtClass.voidType, METHOD_UNBIND, null, clazz);
+                unbindMethod.setBody(unbindCode);
+                TransformHelper.addMethod(clazz, unbindMethod);
+            }
             return true;
         }
         return false;
     }
 
     private static void checkCanTransform(CtClass clazz) throws CannotCompileException {
-        CtMethod bindMethod = TransformHelper.getMethodByName(clazz, METHOD_BIND);
+        CtMethod bindMethod = TransformHelper.getMethod(clazz, METHOD_BIND);
         if (bindMethod == null) {
-            throw new CannotCompileException("Classes(" + clazz.getSimpleName() + ") with @Subscribe annotations must extends QsActivity, QsFragment and QsDialogFragment");
+            throw new CannotCompileException("Classes(" + clazz.getSimpleName() + ") with @Subscribe annotations must implements QsIBindEvent, and execute its method when class created and destroyed..");
         }
     }
 

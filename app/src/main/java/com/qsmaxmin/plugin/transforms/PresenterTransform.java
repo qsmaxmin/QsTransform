@@ -34,12 +34,14 @@ public class PresenterTransform {
         String presenterClassName = getPresenterClassName(clazz);
         if (presenterClassName == null) return false;
 
-        CtMethod method = CtMethod.make("public java.lang.Object createPresenter() {" +
-                "return new " + presenterClassName + "();" +
-                "}", clazz);
-
-        clazz.addMethod(method);
-        return true;
+        if (!TransformHelper.hasDeclaredMethod(clazz, "createPresenter")) {
+            CtMethod method = CtMethod.make("public java.lang.Object createPresenter() {" +
+                    "return new " + presenterClassName + "();" +
+                    "}", clazz);
+            clazz.addMethod(method);
+            return true;
+        }
+        return false;
     }
 
     private static String getPresenterClassName(CtClass clazz) {

@@ -86,9 +86,9 @@ public class ViewBindTransform {
     }
 
     private static void addBindBundleMethod(CtClass clazz, HashMap<CtField, BindBundle> bundleMap) throws Exception {
-        boolean hasMethod = TransformHelper.hasMethod(clazz, METHOD_BIND_BUNDLE);
+        CtMethod ctMethod = TransformHelper.getDeclaredMethod(clazz, METHOD_BIND_BUNDLE);
         StringBuilder sb = new StringBuilder("{");
-        if (!hasMethod) {
+        if (ctMethod == null) {
             sb.append("super." + METHOD_BIND_BUNDLE + "($1);");
         }
         sb.append("if($1==null)return;");
@@ -106,9 +106,7 @@ public class ViewBindTransform {
         }
         String code = sb.append("}").toString();
 
-        CtMethod ctMethod;
-        if (hasMethod) {
-            ctMethod = clazz.getDeclaredMethod(METHOD_BIND_BUNDLE);
+        if (ctMethod != null) {
             ctMethod.insertAfter(code);
         } else {
             CtClass[] bundleClass = new CtClass[]{TransformHelper.getInstance().get(PATH_BUNDLE)};
@@ -143,9 +141,9 @@ public class ViewBindTransform {
     }
 
     private static void addBindViewMethod(CtClass clazz, HashMap<CtField, Bind> bindMap, HashMap<CtMethod, OnClick> onClickMap, String rootPath) throws Exception {
-        boolean hasMethod = TransformHelper.hasMethod(clazz, METHOD_BIND_VIEW);
+        CtMethod ctMethod = TransformHelper.getDeclaredMethod(clazz, METHOD_BIND_VIEW);
         StringBuilder sb = new StringBuilder("{");
-        if (!hasMethod) {
+        if (ctMethod == null) {
             sb.append("super." + METHOD_BIND_VIEW + "($1);");
         }
         HashSet<Integer> bindIds = null;
@@ -184,14 +182,12 @@ public class ViewBindTransform {
         }
         String code = sb.append('}').toString();
 
-        if (hasMethod) {
-            CtMethod ctMethod = clazz.getDeclaredMethod(METHOD_BIND_VIEW);
+        if (ctMethod != null) {
             ctMethod.insertAfter(code);
         } else {
             CtClass[] viewClasses = new CtClass[]{TransformHelper.getInstance().get(PATH_VIEW)};
-            CtMethod ctMethod = new CtMethod(CtClass.voidType, METHOD_BIND_VIEW, viewClasses, clazz);
+            ctMethod = new CtMethod(CtClass.voidType, METHOD_BIND_VIEW, viewClasses, clazz);
             ctMethod.setModifiers(Modifier.PUBLIC);
-
             ctMethod.setBody(code);
             clazz.addMethod(ctMethod);
         }

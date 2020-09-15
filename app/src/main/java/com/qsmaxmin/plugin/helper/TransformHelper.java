@@ -77,7 +77,7 @@ public class TransformHelper {
         }
     }
 
-    public static boolean hasMethod(CtClass ctClass, String methodName) {
+    public static boolean hasDeclaredMethod(CtClass ctClass, String methodName) {
         try {
             return ctClass.getDeclaredMethod(methodName) != null;
         } catch (NotFoundException ignored) {
@@ -85,7 +85,7 @@ public class TransformHelper {
         }
     }
 
-    public static boolean hasMethod(CtClass ctClass, CtMethod method) {
+    public static boolean hasDeclaredMethod(CtClass ctClass, CtMethod method) {
         try {
             return ctClass.getDeclaredMethod(method.getName()) != null;
         } catch (NotFoundException ignored) {
@@ -150,12 +150,21 @@ public class TransformHelper {
         }
     }
 
-    public static CtMethod getMethodByName(CtClass clazz, String methodName) {
+    public static CtMethod getMethod(CtClass clazz, String methodName) {
         CtMethod[] methods = clazz.getMethods();
         if (methods != null && methods.length > 0) {
             for (CtMethod method : methods) {
                 if (method.getName().equals(methodName)) return method;
             }
+        }
+        return null;
+    }
+
+    public static CtMethod getDeclaredMethod(CtClass clazz, String methodName) {
+        try {
+            return clazz.getDeclaredMethod(methodName);
+        } catch (NotFoundException e) {
+            e.printStackTrace();
         }
         return null;
     }
