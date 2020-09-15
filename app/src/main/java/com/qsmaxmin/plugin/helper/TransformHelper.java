@@ -163,8 +163,7 @@ public class TransformHelper {
     public static CtMethod getDeclaredMethod(CtClass clazz, String methodName) {
         try {
             return clazz.getDeclaredMethod(methodName);
-        } catch (NotFoundException e) {
-            e.printStackTrace();
+        } catch (NotFoundException ignored) {
         }
         return null;
     }
