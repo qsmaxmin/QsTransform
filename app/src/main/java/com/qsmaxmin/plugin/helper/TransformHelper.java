@@ -78,12 +78,11 @@ public class TransformHelper {
     }
 
     public static boolean hasMethod(CtClass ctClass, String methodName) {
-        CtMethod[] methods = ctClass.getMethods();
-        if (methods == null || methods.length == 0) return false;
-        for (CtMethod m : methods) {
-            if (m.getName().equals(methodName)) return true;
+        try {
+            return ctClass.getDeclaredMethod(methodName) != null;
+        } catch (NotFoundException ignored) {
+            return false;
         }
-        return false;
     }
 
     public static boolean hasMethod(CtClass ctClass, CtMethod method) {

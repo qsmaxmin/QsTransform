@@ -86,11 +86,13 @@ public class ViewBindTransform {
     }
 
     private static void addBindBundleMethod(CtClass clazz, HashMap<CtField, BindBundle> bundleMap) throws Exception {
-        CtClass[] bundleClass = new CtClass[]{TransformHelper.getInstance().get(PATH_BUNDLE)};
-        CtMethod ctMethod = new CtMethod(CtClass.voidType, METHOD_BIND_BUNDLE, bundleClass, clazz);
-        ctMethod.setModifiers(Modifier.PUBLIC);
+        boolean hasMethod = TransformHelper.hasMethod(clazz, METHOD_BIND_BUNDLE);
+        StringBuilder sb = new StringBuilder("{");
+        if (!hasMethod) {
+            sb.append("super." + METHOD_BIND_BUNDLE + "($1);");
+        }
+        sb.append("if($1==null)return;");
 
-        StringBuilder sb = new StringBuilder("{if($1==null)return;");
         for (CtField field : bundleMap.keySet()) {
             BindBundle bindBundle = bundleMap.get(field);
             String bk = bindBundle.value();
@@ -102,8 +104,19 @@ public class ViewBindTransform {
                 sb.append("$0.").append(field.getName()).append("=$1.").append(bundleMethodName).append("(\"").append(bk).append("\");");
             }
         }
-        ctMethod.setBody(sb.append("}").toString());
-        clazz.addMethod(ctMethod);
+        String code = sb.append("}").toString();
+
+        CtMethod ctMethod;
+        if (hasMethod) {
+            ctMethod = clazz.getDeclaredMethod(METHOD_BIND_BUNDLE);
+            ctMethod.insertAfter(code);
+        } else {
+            CtClass[] bundleClass = new CtClass[]{TransformHelper.getInstance().get(PATH_BUNDLE)};
+            ctMethod = new CtMethod(CtClass.voidType, METHOD_BIND_BUNDLE, bundleClass, clazz);
+            ctMethod.setModifiers(Modifier.PUBLIC);
+            ctMethod.setBody(code);
+            clazz.addMethod(ctMethod);
+        }
     }
 
     private static String getBundleMethodName(String typeName) {
@@ -130,11 +143,11 @@ public class ViewBindTransform {
     }
 
     private static void addBindViewMethod(CtClass clazz, HashMap<CtField, Bind> bindMap, HashMap<CtMethod, OnClick> onClickMap, String rootPath) throws Exception {
-        CtClass[] viewClasses = new CtClass[]{TransformHelper.getInstance().get(PATH_VIEW)};
-        CtMethod ctMethod = new CtMethod(CtClass.voidType, METHOD_BIND_VIEW, viewClasses, clazz);
-        ctMethod.setModifiers(Modifier.PUBLIC);
+        boolean hasMethod = TransformHelper.hasMethod(clazz, METHOD_BIND_VIEW);
         StringBuilder sb = new StringBuilder("{");
-
+        if (!hasMethod) {
+            sb.append("super." + METHOD_BIND_VIEW + "($1);");
+        }
         HashSet<Integer> bindIds = null;
         if (bindMap != null) {
             bindIds = new HashSet<>();
@@ -148,7 +161,6 @@ public class ViewBindTransform {
                 sb.append("if(v_").append(id).append("!=null)$0.").append(field.getName()).append("=(").append(typeName).append(")v_").append(id).append(";");
             }
         }
-
         if (onClickMap != null) {
             int index = 0;
             for (CtMethod method : onClickMap.keySet()) {
@@ -170,9 +182,19 @@ public class ViewBindTransform {
                 index++;
             }
         }
+        String code = sb.append('}').toString();
 
-        ctMethod.setBody(sb.append('}').toString());
-        clazz.addMethod(ctMethod);
+        if (hasMethod) {
+            CtMethod ctMethod = clazz.getDeclaredMethod(METHOD_BIND_VIEW);
+            ctMethod.insertAfter(code);
+        } else {
+            CtClass[] viewClasses = new CtClass[]{TransformHelper.getInstance().get(PATH_VIEW)};
+            CtMethod ctMethod = new CtMethod(CtClass.voidType, METHOD_BIND_VIEW, viewClasses, clazz);
+            ctMethod.setModifiers(Modifier.PUBLIC);
+
+            ctMethod.setBody(code);
+            clazz.addMethod(ctMethod);
+        }
     }
 
     private static CtClass createClickListenerImplClass(CtClass clazz, int index, CtMethod method, long interval) throws Exception {
