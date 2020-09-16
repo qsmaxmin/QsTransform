@@ -17,6 +17,7 @@ import javassist.Modifier;
  */
 public class ThreadPointTransform {
     private static final String   CLASS_THREAD_HELPER    = "com.qsmaxmin.qsbase.plugin.threadpoll.QsThreadPollHelper";
+    private static final String   CLASS_RUNNABLE         = "com.qsmaxmin.qsbase.plugin.threadpoll.SafeRunnable";
     private static final String   methodNameMainThread   = "post";
     private static final String   methodNameWorkThread   = "runOnWorkThread";
     private static final String   methodNameHttpThread   = "runOnHttpThread";
@@ -33,8 +34,8 @@ public class ThreadPointTransform {
         if (runnableClass == null) {
             synchronized (ThreadPointTransform.class) {
                 if (runnableClass == null) {
-                    runnableClass = TransformHelper.getInstance().get("java.lang.Runnable");
-                    runMethod = runnableClass.getDeclaredMethod("run");
+                    runnableClass = TransformHelper.getInstance().get(CLASS_RUNNABLE);
+                    runMethod = runnableClass.getDeclaredMethod("safeRun");
                 }
             }
         }
@@ -69,7 +70,7 @@ public class ThreadPointTransform {
         CtClass implClass = TransformHelper.getInstance().makeClassIfNotExists(implClassName);
         if (implClass.isFrozen()) implClass.defrost();
 
-        implClass.setInterfaces(new CtClass[]{runnableClass});
+        implClass.setSuperclass(runnableClass);
 
         CtClass[] parameterTypes = originalMethod.getParameterTypes();
 
