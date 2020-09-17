@@ -23,10 +23,6 @@ public class PermissionTransform {
     private static       CtClass  callbackInterface;
     private static       CtMethod callbackMethod;
 
-    private static void println(String text) {
-        TransformHelper.println("\t\t> " + text);
-    }
-
     public static boolean transform(CtClass clazz, CtMethod[] declaredMethods, String rootPath) throws Exception {
         if (declaredMethods == null || declaredMethods.length == 0) return false;
         if (callbackInterface == null) {
@@ -39,9 +35,15 @@ public class PermissionTransform {
         }
 
         int methodIndex = 0;
+        boolean hasShowLog = false;
         for (CtMethod originalMethod : declaredMethods) {
             Object annotation = originalMethod.getAnnotation(Permission.class);
             if (annotation != null) {
+                if (!hasShowLog) {
+                    hasShowLog = true;
+                    TransformHelper.println("\t\t> transform class(@Permission) :" + clazz.getName());
+                }
+
                 boolean isStaticMethod = Modifier.isStatic(originalMethod.getModifiers());
 
                 Permission permission = (Permission) annotation;
@@ -56,12 +58,8 @@ public class PermissionTransform {
                 originalMethod.setBody(code);
 
                 implClass.writeFile(rootPath);
-
                 methodIndex++;
             }
-        }
-        if (methodIndex > 0) {
-            println("transform class(@Permission) :" + clazz.getName());
         }
         return methodIndex > 0;
     }
@@ -232,7 +230,7 @@ public class PermissionTransform {
         String returnText = TransformHelper.getDefaultReturnText(originalMethod);
         if (returnText != null) {
             sb.append(returnText);
-            println("method with @Permission should not has return type, method:" + originalMethod.getName());
+            TransformHelper.println("\t\t\t> method with @Permission has invalid return value, method:" + originalMethod.getName());
         }
         sb.append('}');
         return sb.toString();

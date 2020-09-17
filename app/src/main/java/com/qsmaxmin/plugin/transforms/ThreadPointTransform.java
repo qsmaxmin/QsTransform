@@ -25,10 +25,6 @@ public class ThreadPointTransform {
     private static       CtClass  runnableClass;
     private static       CtMethod runMethod;
 
-    private static void println(String text) {
-        TransformHelper.println("\t\t> " + text);
-    }
-
     public static boolean transform(CtClass clazz, CtMethod[] declaredMethods, String rootPath) throws Exception {
         if (declaredMethods == null || declaredMethods.length == 0) return false;
         if (runnableClass == null) {
@@ -41,9 +37,15 @@ public class ThreadPointTransform {
         }
 
         int methodIndex = 0;
+        boolean hasShowLog = false;
         for (CtMethod originalMethod : declaredMethods) {
             Object ann = originalMethod.getAnnotation(ThreadPoint.class);
             if (ann != null) {
+                if (!hasShowLog) {
+                    hasShowLog = true;
+                    TransformHelper.println("\t\t> transform class(@ThreadPoint) :" + clazz.getName());
+                }
+
                 ThreadPoint threadPoint = (ThreadPoint) ann;
                 ThreadType type = threadPoint.value();
                 boolean isStaticMethod = Modifier.isStatic(originalMethod.getModifiers());
@@ -56,10 +58,6 @@ public class ThreadPointTransform {
                 implClass.writeFile(rootPath);
                 methodIndex++;
             }
-        }
-
-        if (methodIndex > 0) {
-            println("transform class(@ThreadPoint) :" + clazz.getName());
         }
         return methodIndex > 0;
     }
@@ -215,7 +213,7 @@ public class ThreadPointTransform {
         String returnText = TransformHelper.getDefaultReturnText(originalMethod);
         if (returnText != null) {
             sb.append(returnText);
-            println("method with @ThreadPoint should not has return type, method:" + originalMethod.getName());
+            TransformHelper.println("\t\t\t> method with @ThreadPoint has invalid return value, method:" + originalMethod.getName());
         }
         return sb.append('}').toString();
     }
