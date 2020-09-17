@@ -36,7 +36,7 @@ abstract class BasePlugin implements Plugin<Project> {
             if (isDebug()) {
                 dependencies.add("implementation", "com.qsmaxmin.qsbase:QsBase:9.9.9");
             } else {
-                dependencies.add("implementation", "com.github.qsmaxmin:QsBase:10.1.8");
+                dependencies.add("implementation", "com.github.qsmaxmin:QsBase:10.2.0");
             }
         }
     }
