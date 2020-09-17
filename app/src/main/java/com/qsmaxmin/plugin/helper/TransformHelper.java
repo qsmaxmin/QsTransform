@@ -184,4 +184,28 @@ public class TransformHelper {
         }
         return false;
     }
+
+    public static String getDefaultReturnText(CtMethod method) throws Exception {
+        CtClass returnType = method.getReturnType();
+        if (returnType != CtClass.voidType) {
+            if (isNumberType(returnType)) {
+                return "return 0;";
+            } else if (returnType == CtClass.booleanType) {
+                return "return false;";
+            } else {
+                return "return null;";
+            }
+        }
+        return null;
+    }
+
+    private static boolean isNumberType(CtClass type) {
+        return type == CtClass.intType
+                || type == CtClass.floatType
+                || type == CtClass.longType
+                || type == CtClass.byteType
+                || type == CtClass.charType
+                || type == CtClass.doubleType
+                || type == CtClass.shortType;
+    }
 }

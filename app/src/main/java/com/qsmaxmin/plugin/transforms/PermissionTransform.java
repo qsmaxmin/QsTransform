@@ -223,10 +223,19 @@ public class PermissionTransform {
             }
         }
 
-        return "{" + "String[] permissions = new String[]{" + permissionText + "};" +
-                "boolean granted = " + CLASS_PERMISSION_HELPER + "." + METHOD_CHECK_PERMISSION + "(permissions);" +
-                "if(granted){" + newMethodName + "($$);}" +
-                "else{" + CLASS_PERMISSION_HELPER + ".getInstance()." + METHOD_REQUEST_PERMISSION + "(" + implCode + ", permissions);}}";
+        StringBuilder sb = new StringBuilder("{");
+        sb.append("String[] permissions = new String[]{").append(permissionText).append("};")
+                .append("boolean granted = ").append(CLASS_PERMISSION_HELPER).append(".").append(METHOD_CHECK_PERMISSION).append("(permissions);")
+                .append("if(granted){").append(newMethodName).append("($$);}")
+                .append("else{").append(CLASS_PERMISSION_HELPER).append(".getInstance().").append(METHOD_REQUEST_PERMISSION).append("(").append(implCode).append(", permissions);}");
+
+        String returnText = TransformHelper.getDefaultReturnText(originalMethod);
+        if (returnText != null) {
+            sb.append(returnText);
+            println("method with @Permission should not has return type, method:" + originalMethod.getName());
+        }
+        sb.append('}');
+        return sb.toString();
     }
 
     private static String getNewMethodName(CtMethod originalMethod, int methodIndex) {

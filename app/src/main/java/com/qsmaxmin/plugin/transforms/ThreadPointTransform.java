@@ -200,15 +200,24 @@ public class ThreadPointTransform {
                 executeName = methodNameSingleThread;
                 break;
         }
+
+        StringBuilder sb = new StringBuilder("{");
         if (isStaticMethod) {
-            return CLASS_THREAD_HELPER + "." + executeName + "(new " + runnableImpl + "(" + args + "));";
+            sb.append(CLASS_THREAD_HELPER + ".").append(executeName).append("(new ").append(runnableImpl).append("(").append(args).append("));");
         } else {
             if (args.length() == 0) {
-                return CLASS_THREAD_HELPER + "." + executeName + "(new " + runnableImpl + "($0));";
+                sb.append(CLASS_THREAD_HELPER + ".").append(executeName).append("(new ").append(runnableImpl).append("($0));");
             } else {
-                return CLASS_THREAD_HELPER + "." + executeName + "(new " + runnableImpl + "($0," + args + "));";
+                sb.append(CLASS_THREAD_HELPER + ".").append(executeName).append("(new ").append(runnableImpl).append("($0,").append(args).append("));");
             }
         }
+
+        String returnText = TransformHelper.getDefaultReturnText(originalMethod);
+        if (returnText != null) {
+            sb.append(returnText);
+            println("method with @ThreadPoint should not has return type, method:" + originalMethod.getName());
+        }
+        return sb.append('}').toString();
     }
 
     private static String getNewMethodName(CtMethod originalMethod, int methodIndex) {
