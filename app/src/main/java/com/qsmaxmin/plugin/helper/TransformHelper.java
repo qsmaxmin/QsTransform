@@ -168,6 +168,21 @@ public class TransformHelper {
         return null;
     }
 
+    public static boolean hasInterface(CtClass clazz, String interfaceName) {
+        try {
+            CtClass[] interfaces = clazz.getInterfaces();
+            if (interfaces != null && interfaces.length > 0) {
+                for (CtClass cl : interfaces) {
+                    if (cl.getName().equals(interfaceName)) {
+                        return true;
+                    }
+                }
+            }
+        } catch (NotFoundException ignored) {
+        }
+        return false;
+    }
+
     public static void println(String text) {
         if (enableLog) System.out.println(text);
     }

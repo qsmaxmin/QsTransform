@@ -20,10 +20,12 @@ import javassist.Modifier;
  * @Description
  */
 public class ViewBindTransform {
-    private static final String   METHOD_BIND_VIEW   = "bindViewByQsPlugin";
-    private static final String   METHOD_BIND_BUNDLE = "bindBundleByQsPlugin";
-    private static final String   PATH_VIEW          = "android.view.View";
-    private static final String   PATH_BUNDLE        = "android.os.Bundle";
+    private static final String   INTERFACE_BIND_VIEW   = "com.qsmaxmin.qsbase.plugin.bind.QsIBindView";
+    private static final String   INTERFACE_BIND_BUNDLE = "com.qsmaxmin.qsbase.plugin.bind.QsIBindBundle";
+    private static final String   METHOD_BIND_VIEW      = "bindViewByQsPlugin";
+    private static final String   METHOD_BIND_BUNDLE    = "bindBundleByQsPlugin";
+    private static final String   PATH_VIEW             = "android.view.View";
+    private static final String   PATH_BUNDLE           = "android.os.Bundle";
     private static       CtClass  listenerClass;
     private static       CtMethod onClickMethod;
 
@@ -87,8 +89,10 @@ public class ViewBindTransform {
 
     private static void addBindBundleMethod(CtClass clazz, HashMap<CtField, BindBundle> bundleMap) throws Exception {
         CtMethod ctMethod = TransformHelper.getDeclaredMethod(clazz, METHOD_BIND_BUNDLE);
+        boolean hasInterface = TransformHelper.hasInterface(clazz, INTERFACE_BIND_BUNDLE);
+
         StringBuilder sb = new StringBuilder("{");
-        if (ctMethod == null) {
+        if (ctMethod == null && !hasInterface) {
             sb.append("super." + METHOD_BIND_BUNDLE + "($1);");
         }
         sb.append("if($1==null)return;");
@@ -142,8 +146,9 @@ public class ViewBindTransform {
 
     private static void addBindViewMethod(CtClass clazz, HashMap<CtField, Bind> bindMap, HashMap<CtMethod, OnClick> onClickMap, String rootPath) throws Exception {
         CtMethod ctMethod = TransformHelper.getDeclaredMethod(clazz, METHOD_BIND_VIEW);
+        boolean hasInterface = TransformHelper.hasInterface(clazz, INTERFACE_BIND_VIEW);
         StringBuilder sb = new StringBuilder("{");
-        if (ctMethod == null) {
+        if (ctMethod == null && !hasInterface) {
             sb.append("super." + METHOD_BIND_VIEW + "($1);");
         }
         HashSet<Integer> bindIds = null;
