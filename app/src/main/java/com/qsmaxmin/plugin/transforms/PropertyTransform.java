@@ -14,9 +14,10 @@ import javassist.CtMethod;
  * @Description
  */
 public class PropertyTransform {
-    private static final String readPropertyMethodName  = "readPropertiesByQsPlugin";
-    private static final String savePropertyMethodName  = "savePropertiesByQsPlugin";
-    private static final String clearPropertyMethodName = "clearPropertiesByQsPlugin";
+    private static final String INTERFACE_PROPERTY      = "com.qsmaxmin.qsbase.plugin.property.QsIProperty";
+    private static final String METHOD_READ_PROPERTIES  = "readPropertiesByQsPlugin";
+    private static final String METHOD_SAVE_PROPERTIES  = "savePropertiesByQsPlugin";
+    private static final String METHOD_CLEAR_PROPERTIES = "clearPropertiesByQsPlugin";
 
     private static void println(String text) {
         TransformHelper.println("\t\t> " + text);
@@ -31,17 +32,18 @@ public class PropertyTransform {
         CtMethod baseClearMethod = null;
         CtMethod[] methods = clazz.getMethods();
         for (CtMethod m : methods) {
-            if (readPropertyMethodName.equals(m.getName())) {
+            if (METHOD_READ_PROPERTIES.equals(m.getName())) {
                 baseReadMethod = m;
-            } else if (savePropertyMethodName.equals(m.getName())) {
+            } else if (METHOD_SAVE_PROPERTIES.equals(m.getName())) {
                 baseSaveMethod = m;
-            } else if (clearPropertyMethodName.equals(m.getName())) {
+            } else if (METHOD_CLEAR_PROPERTIES.equals(m.getName())) {
                 baseClearMethod = m;
             }
         }
         if (baseReadMethod == null || baseSaveMethod == null || baseClearMethod == null) {
             throw new TransformException("transform error, class '" + clazz.getName() + "' should extends 'QsProperties' !!!");
         }
+
         CtMethod readMethod = new CtMethod(baseReadMethod, clazz, null);
         CtMethod saveMethod = new CtMethod(baseSaveMethod, clazz, null);
         CtMethod clearMethod = new CtMethod(baseClearMethod, clazz, null);
@@ -49,6 +51,12 @@ public class PropertyTransform {
         StringBuilder readSB = new StringBuilder("{");
         StringBuilder saveSB = new StringBuilder("{");
         StringBuilder clearSB = new StringBuilder("{");
+        if (!TransformHelper.hasInterface(clazz, INTERFACE_PROPERTY)) {
+            readSB.append("super." + METHOD_READ_PROPERTIES + "($1);");
+            saveSB.append("super." + METHOD_SAVE_PROPERTIES + "();");
+            clearSB.append("super." + METHOD_CLEAR_PROPERTIES + "();");
+        }
+
         CtField[] fields = clazz.getDeclaredFields();
         for (CtField field : fields) {
             Object ann;
