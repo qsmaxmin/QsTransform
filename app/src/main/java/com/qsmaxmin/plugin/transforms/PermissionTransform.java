@@ -35,15 +35,9 @@ public class PermissionTransform {
         }
 
         int methodIndex = 0;
-        boolean hasShowLog = false;
         for (CtMethod originalMethod : declaredMethods) {
             Object annotation = originalMethod.getAnnotation(Permission.class);
             if (annotation != null) {
-                if (!hasShowLog) {
-                    hasShowLog = true;
-                    TransformHelper.println("\t\t> transform class(@Permission) :" + clazz.getName());
-                }
-
                 boolean isStaticMethod = Modifier.isStatic(originalMethod.getModifiers());
 
                 Permission permission = (Permission) annotation;
@@ -137,7 +131,6 @@ public class PermissionTransform {
             }
             constructor.setBody(sb.append('}').toString());
             TransformHelper.addConstructor(implClass, constructor);
-
 
             CtMethod callbackImplMethod = new CtMethod(callbackMethod, implClass, null);
             String newMethodName = getNewMethodName(originalMethod, methodIndex);

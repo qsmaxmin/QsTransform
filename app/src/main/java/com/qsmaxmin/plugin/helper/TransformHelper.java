@@ -191,6 +191,10 @@ public class TransformHelper {
         enableLog = showLog;
     }
 
+    public static boolean isEnableLog(){
+        return enableLog;
+    }
+
     public static boolean isFieldHasAnnotation(CtField field, Class<?> annClass) {
         try {
             Object annotation = field.getAnnotation(annClass);

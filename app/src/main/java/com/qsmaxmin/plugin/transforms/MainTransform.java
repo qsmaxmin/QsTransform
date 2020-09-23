@@ -36,8 +36,16 @@ import javassist.CtMethod;
 import javassist.NotFoundException;
 
 public class MainTransform extends Transform {
-    private final Project     project;
-    private       MyExtension myExtension;
+    private static final int         STATE_PROPERTY     = 0b1;
+    private static final int         STATE_PRESENTER    = 0b1 << 1;
+    private static final int         STATE_EVENT        = 0b1 << 2;
+    public static final  int         STATE_BIND_VIEW    = 0b1 << 3;
+    public static final  int         STATE_ONCLICK      = 0b1 << 4;
+    public static final  int         STATE_BIND_BUNDLE  = 0b1 << 5;
+    private static final int         STATE_PERMISSION   = 0b1 << 6;
+    private static final int         STATE_THREAD_POINT = 0b1 << 7;
+    private final        Project     project;
+    private              MyExtension myExtension;
 
     public MainTransform(Project project) {
         this.project = project;
@@ -196,29 +204,83 @@ public class MainTransform extends Transform {
     }
 
     private boolean processJavaClassFile(String rootPath, CtClass clazz) throws Exception {
-        boolean transformed = false;
+        int state = 0;
         if (clazz == null) {
             return false;
         }
         if (clazz.getAnnotation(AutoProperty.class) != null) {
-            transformed = true;
             PropertyTransform.transform(clazz, rootPath);
+            state |= STATE_PROPERTY;
         } else {
             CtMethod[] declaredMethods = clazz.getDeclaredMethods();
             CtField[] declaredFields = clazz.getDeclaredFields();
+            if (PresenterTransform.transform(clazz)) {
+                state |= STATE_PRESENTER;
+            }
+            if (EventTransform.transform(clazz, declaredMethods)) {
+                state |= STATE_EVENT;
+            }
 
-            boolean hasPresenter = PresenterTransform.transform(clazz);
-            boolean hasEvent = EventTransform.transform(clazz, declaredMethods);
-            boolean hasViewBind = ViewBindTransform.transform(clazz, declaredMethods, declaredFields, rootPath);
-            boolean hasPermission = PermissionTransform.transform(clazz, declaredMethods, rootPath);
-            boolean hasThreadPoint = ThreadPointTransform.transform(clazz, declaredMethods, rootPath);
+            state |= ViewBindTransform.transform(clazz, declaredMethods, declaredFields, rootPath);
 
-            if (hasPresenter || hasEvent || hasViewBind || hasPermission || hasThreadPoint) {
-                transformed = true;
+            if (PermissionTransform.transform(clazz, declaredMethods, rootPath)) {
+                state |= STATE_PERMISSION;
+            }
+            if (ThreadPointTransform.transform(clazz, declaredMethods, rootPath)) {
+                state |= STATE_THREAD_POINT;
+            }
+            if (state != 0) {
                 clazz.writeFile(rootPath);
             }
         }
-        return transformed;
+        showTransformInfoLog(clazz, state);
+        return state != 0;
+    }
+
+    private void showTransformInfoLog(CtClass clazz, int state) {
+        if (state == 0 || !TransformHelper.isEnableLog()) return;
+        boolean tag = false;
+        StringBuilder sb = new StringBuilder("\t\t> transform class :");
+        sb.append(clazz.getName()).append(" ----- [");
+        if ((state & STATE_PROPERTY) == STATE_PROPERTY) {
+            sb.append("@AutoProperty");
+            tag = true;
+        }
+        if ((state & STATE_PRESENTER) == STATE_PRESENTER) {
+            if (tag) sb.append(", ");
+            sb.append("@Presenter");
+            tag = true;
+        }
+        if ((state & STATE_EVENT) == STATE_EVENT) {
+            if (tag) sb.append(", ");
+            sb.append("@Subscribe");
+            tag = true;
+        }
+        if ((state & STATE_PERMISSION) == STATE_PERMISSION) {
+            if (tag) sb.append(", ");
+            sb.append("@Permission");
+            tag = true;
+        }
+        if ((state & STATE_THREAD_POINT) == STATE_THREAD_POINT) {
+            if (tag) sb.append(", ");
+            sb.append("@ThreadPoint");
+            tag = true;
+        }
+        if ((state & STATE_BIND_VIEW) == STATE_BIND_VIEW) {
+            if (tag) sb.append(", ");
+            sb.append("@Bind");
+            tag = true;
+        }
+        if ((state & STATE_ONCLICK) == STATE_ONCLICK) {
+            if (tag) sb.append(", ");
+            sb.append("@OnClick");
+            tag = true;
+        }
+        if ((state & STATE_BIND_BUNDLE) == STATE_BIND_BUNDLE) {
+            if (tag) sb.append(", ");
+            sb.append("@BindBundle");
+        }
+        println(sb.append("]").toString());
     }
 
 

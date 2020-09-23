@@ -19,12 +19,7 @@ public class PropertyTransform {
     private static final String METHOD_SAVE_PROPERTIES  = "savePropertiesByQsPlugin";
     private static final String METHOD_CLEAR_PROPERTIES = "clearPropertiesByQsPlugin";
 
-    private static void println(String text) {
-        TransformHelper.println("\t\t> " + text);
-    }
-
     public static void transform(CtClass clazz, String rootPath) throws Exception {
-        println("transform class(@AutoProperty) :" + clazz.getName());
         if (clazz.isFrozen()) clazz.defrost();
 
         CtMethod baseReadMethod = null;

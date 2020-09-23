@@ -19,16 +19,11 @@ import javassist.bytecode.annotation.Annotation;
  */
 public class PresenterTransform {
 
-    private static void println(String text) {
-        TransformHelper.println("\t\t> " + text);
-    }
-
     public static boolean transform(CtClass clazz) throws Exception {
         Object presenter = clazz.getAnnotation(Presenter.class);
         if (presenter == null) {
             return false;
         }
-        println("transform class(@Presenter) :" + clazz.getName());
         if (clazz.isFrozen()) clazz.defrost();
 
         String presenterClassName = getPresenterClassName(clazz);

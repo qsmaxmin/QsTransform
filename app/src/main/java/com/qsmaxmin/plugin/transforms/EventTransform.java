@@ -22,10 +22,6 @@ public class EventTransform {
     private static final String METHOD_REGISTER    = "register";
     private static final String METHOD_UNREGISTER  = "unregister";
 
-    private static void println(String text) {
-        TransformHelper.println("\t\t> " + text);
-    }
-
     public static boolean transform(CtClass clazz, CtMethod[] declaredMethods) throws Exception {
         List<CtMethod> list = null;
         for (CtMethod method : declaredMethods) {
@@ -37,7 +33,6 @@ public class EventTransform {
         }
 
         if (list != null && list.size() > 0) {
-            println("transform class(@Subscribe) :" + clazz.getName());
             checkCanTransform(clazz);
 
             String bindCode = getBindMethodBodyCode(clazz, list);

@@ -37,15 +37,9 @@ public class ThreadPointTransform {
         }
 
         int methodIndex = 0;
-        boolean hasShowLog = false;
         for (CtMethod originalMethod : declaredMethods) {
             Object ann = originalMethod.getAnnotation(ThreadPoint.class);
             if (ann != null) {
-                if (!hasShowLog) {
-                    hasShowLog = true;
-                    TransformHelper.println("\t\t> transform class(@ThreadPoint) :" + clazz.getName());
-                }
-
                 ThreadPoint threadPoint = (ThreadPoint) ann;
                 ThreadType type = threadPoint.value();
                 boolean isStaticMethod = Modifier.isStatic(originalMethod.getModifiers());

@@ -29,11 +29,7 @@ public class ViewBindTransform {
     private static       CtClass  listenerClass;
     private static       CtMethod onClickMethod;
 
-    private static void println(String text) {
-        TransformHelper.println("\t\t> " + text);
-    }
-
-    public static boolean transform(CtClass clazz, CtMethod[] declaredMethods, CtField[] declaredFields, String rootPath) throws Exception {
+    public static int transform(CtClass clazz, CtMethod[] declaredMethods, CtField[] declaredFields, String rootPath) throws Exception {
         if (listenerClass == null) {
             synchronized (ThreadPointTransform.class) {
                 if (listenerClass == null) {
@@ -74,7 +70,6 @@ public class ViewBindTransform {
         }
 
         if (bindMap != null || onClickMap != null || bundleMap != null) {
-            println("transform class(@Bind, @OnClick...) :" + clazz.getName());
             if (clazz.isFrozen()) clazz.defrost();
             if (bindMap != null || onClickMap != null) {
                 addBindViewMethod(clazz, bindMap, onClickMap, rootPath);
@@ -82,9 +77,14 @@ public class ViewBindTransform {
             if (bundleMap != null) {
                 addBindBundleMethod(clazz, bundleMap);
             }
-            return true;
+
+            int state = 0;
+            if (bindMap != null) state |= MainTransform.STATE_BIND_VIEW;
+            if (onClickMap != null) state |= MainTransform.STATE_ONCLICK;
+            if (bundleMap != null) state |= MainTransform.STATE_BIND_BUNDLE;
+            return state;
         }
-        return false;
+        return 0;
     }
 
     private static void addBindBundleMethod(CtClass clazz, HashMap<CtField, BindBundle> bundleMap) throws Exception {
