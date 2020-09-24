@@ -83,10 +83,7 @@ public class MainTransform extends Transform {
     public void transform(TransformInvocation transformInvocation) throws TransformException, InterruptedException, IOException {
         super.transform(transformInvocation);
         myExtension = project.getExtensions().findByType(MyExtension.class);
-
-
         if (myExtension == null || !myExtension.enable) return;
-
         TransformHelper.enableLog(myExtension.showLog);
         boolean incremental = transformInvocation.isIncremental();
         long t0 = System.currentTimeMillis();
