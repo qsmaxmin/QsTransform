@@ -70,9 +70,9 @@ abstract class BasePlugin implements Plugin<Project> {
             new Thread(() -> {
                 ModelConfigInfo info = getModelConfigInfo(project);
                 if (info != null) {
-                    System.out.println("> async refresh dependency successfully! " + info.qsBaseDependency);
+                    System.out.println("> QsTransform :async refresh dependency successfully! " + info.qsBaseDependency);
                 } else {
-                    System.out.println("> async refresh dependency failed");
+                    System.out.println("> QsTransform :async refresh dependency failed");
                 }
             }).start();
             return configInfo.qsBaseDependency;
@@ -91,13 +91,13 @@ abstract class BasePlugin implements Plugin<Project> {
     @Nullable private ModelConfigInfo getModelConfigInfo(Project project) {
         InputStreamReader isr = null;
         ModelConfigInfo newConfig = null;
+        HttpURLConnection conn = null;
         try {
             URL url = new URL(API_LAST_VERSION);
-            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("GET");
             conn.setConnectTimeout(10000);
             conn.connect();
-
             if (conn.getResponseCode() == 200) {
                 InputStream is = conn.getInputStream();
                 isr = new InputStreamReader(is);
@@ -109,10 +109,9 @@ abstract class BasePlugin implements Plugin<Project> {
                 newConfig.currentTime = System.currentTimeMillis();
                 saveConfigInfo(project, newConfig, gson);
             }
-            conn.disconnect();
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (Exception ignored) {
         } finally {
+            if (conn != null) conn.disconnect();
             closeStream(isr);
         }
         return newConfig;
