@@ -191,7 +191,7 @@ public class TransformHelper {
         enableLog = showLog;
     }
 
-    public static boolean isEnableLog(){
+    public static boolean isEnableLog() {
         return enableLog;
     }
 
