@@ -70,9 +70,9 @@ abstract class BasePlugin implements Plugin<Project> {
             new Thread(() -> {
                 ModelConfigInfo info = getModelConfigInfo(project);
                 if (info != null) {
-                    System.out.println("\t> async refresh dependency successfully! " + info.qsBaseDependency);
+                    System.out.println("> async refresh dependency successfully! " + info.qsBaseDependency);
                 } else {
-                    System.out.println("\t> async refresh dependency failed");
+                    System.out.println("> async refresh dependency failed");
                 }
             }).start();
             return configInfo.qsBaseDependency;
