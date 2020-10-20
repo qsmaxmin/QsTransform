@@ -139,6 +139,10 @@ public class MainTransform extends Transform {
                         File destFile = new File(destFilePath);
                         if (destFile.exists()) FileUtils.delete(destFile);
                         if (status != Status.REMOVED) {
+                            if (!f.exists()) {
+                                println(f.getAbsolutePath() + " not exists, Why???");
+                                continue;
+                            }
                             FileUtils.copyFile(f, destFile);
                             if (changedFileList == null) {
                                 changedFileList = new ArrayList<>();
@@ -148,7 +152,6 @@ public class MainTransform extends Transform {
                             changedFileList.add(createCtClass(destFilePath));
                         }
                     }
-
                 }
             } else {
                 FileUtils.copyDirectory(inputDir, destDir);
