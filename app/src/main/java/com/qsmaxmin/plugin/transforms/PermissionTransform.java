@@ -154,9 +154,9 @@ public class PermissionTransform {
             executeCode = className + "." + newMethodName + "();";
         }
         if (forceGoOn) {
-            return executeCode;
+            return "{" + executeCode + "}";
         } else {
-            return "if($1)" + executeCode;
+            return "{if($1)" + executeCode + "}";
         }
     }
 
@@ -174,9 +174,9 @@ public class PermissionTransform {
         }
 
         if (forceGoOn) {
-            return executeCode;
+            return "{" + executeCode + "}";
         } else {
-            return "if($1)" + executeCode;
+            return "{if($1)" + executeCode + "}";
         }
     }
 

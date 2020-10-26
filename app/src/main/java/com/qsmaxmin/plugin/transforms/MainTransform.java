@@ -44,6 +44,7 @@ public class MainTransform extends Transform {
     public static final  int         STATE_BIND_BUNDLE  = 0b1 << 5;
     private static final int         STATE_PERMISSION   = 0b1 << 6;
     private static final int         STATE_THREAD_POINT = 0b1 << 7;
+    private static final int         STATE_ASPECT       = 0b1 << 8;
     private final        Project     project;
     private              MyExtension myExtension;
 
@@ -220,7 +221,6 @@ public class MainTransform extends Transform {
             if (EventTransform.transform(clazz, declaredMethods)) {
                 state |= STATE_EVENT;
             }
-
             state |= ViewBindTransform.transform(clazz, declaredMethods, declaredFields, rootPath);
 
             if (PermissionTransform.transform(clazz, declaredMethods, rootPath)) {
@@ -228,6 +228,9 @@ public class MainTransform extends Transform {
             }
             if (ThreadPointTransform.transform(clazz, declaredMethods, rootPath)) {
                 state |= STATE_THREAD_POINT;
+            }
+            if (AspectTransform.transform(clazz, declaredMethods, rootPath)) {
+                state |= STATE_ASPECT;
             }
             if (state != 0) {
                 clazz.writeFile(rootPath);
@@ -279,6 +282,10 @@ public class MainTransform extends Transform {
         if ((state & STATE_BIND_BUNDLE) == STATE_BIND_BUNDLE) {
             if (tag) sb.append(", ");
             sb.append("@BindBundle");
+        }
+        if ((state & STATE_ASPECT) == STATE_ASPECT) {
+            if (tag) sb.append(", ");
+            sb.append("@QsAspect");
         }
         println(sb.append("]").toString());
     }

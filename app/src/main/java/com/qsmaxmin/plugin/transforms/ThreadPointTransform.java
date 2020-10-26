@@ -131,9 +131,9 @@ public class ThreadPointTransform {
                 sb.append("$0.p").append(i);
                 if (i != parameterTypes.length - 1) sb.append(',');
             }
-            return className + "." + newMethodName + "(" + sb.toString() + ");";
+            return "{" + className + "." + newMethodName + "(" + sb.toString() + ");}";
         } else {
-            return className + "." + newMethodName + "();";
+            return "{" + className + "." + newMethodName + "();}";
         }
     }
 
@@ -144,9 +144,9 @@ public class ThreadPointTransform {
                 sb.append("$0.p").append(i);
                 if (i != parameterTypes.length - 1) sb.append(',');
             }
-            return "target." + newMethodName + "(" + sb.toString() + ");";
+            return "{target." + newMethodName + "(" + sb.toString() + ");}";
         } else {
-            return "target." + newMethodName + "();";
+            return "{target." + newMethodName + "();}";
         }
     }
 

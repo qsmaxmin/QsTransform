@@ -41,7 +41,7 @@ abstract class BasePlugin implements Plugin<Project> {
         project.getExtensions().create("QsPlugin", MyExtension.class);
 
         DependencyHandler dependencies = project.getDependencies();
-        dependencies.add("implementation", "com.github.qsmaxmin:QsAnnotation:1.0.2");
+        dependencies.add("implementation", "com.github.qsmaxmin:QsAnnotation:1.0.6");
         if (addQsBaseRepositories()) {
             dependencies.add("implementation", getQsBaseDependency(project));
         }
