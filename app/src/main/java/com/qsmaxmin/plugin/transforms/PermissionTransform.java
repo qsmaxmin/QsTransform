@@ -213,20 +213,13 @@ public class PermissionTransform {
                 implCode = "new " + callbackImpl + "($0," + args + ")";
             }
         }
+        boolean hasReturnValue = originalMethod.getReturnType() != CtClass.voidType;
 
-        StringBuilder sb = new StringBuilder("{");
-        sb.append("String[] permissions = new String[]{").append(permissionText).append("};")
-                .append("boolean granted = ").append(CLASS_PERMISSION_HELPER).append(".").append(METHOD_CHECK_PERMISSION).append("(permissions);")
-                .append("if(granted){").append(newMethodName).append("($$);}")
-                .append("else{").append(CLASS_PERMISSION_HELPER).append(".getInstance().").append(METHOD_REQUEST_PERMISSION).append("(").append(implCode).append(", permissions);}");
-
-        String returnText = TransformHelper.getDefaultReturnText(originalMethod);
-        if (returnText != null) {
-            sb.append(returnText);
-            TransformHelper.println("\t\t\t> method with @Permission has invalid return value, method:" + originalMethod.getName());
-        }
-        sb.append('}');
-        return sb.toString();
+        return "{" + "String[] permissions = new String[]{" + permissionText + "};" +
+                "boolean granted = " + CLASS_PERMISSION_HELPER + "." + METHOD_CHECK_PERMISSION + "(permissions);" +
+                "if(granted){" + (hasReturnValue ? "return " : "") + newMethodName + "($$);}" +
+                "else{" + CLASS_PERMISSION_HELPER + ".getInstance()." + METHOD_REQUEST_PERMISSION + "(" + implCode + ", permissions);" +
+                (hasReturnValue ? TransformHelper.getDefaultReturnText(originalMethod) : "") + "}}";
     }
 
     private static String getNewMethodName(CtMethod originalMethod, int methodIndex) {
