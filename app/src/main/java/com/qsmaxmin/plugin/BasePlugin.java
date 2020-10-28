@@ -35,7 +35,7 @@ abstract class BasePlugin implements Plugin<Project> {
     private static final String API_LAST_VERSION     = "https://api.github.com/repos/qsmaxmin/QsBase/releases/latest";
     private static final String DEPENDENCY_OFFLINE   = "com.qsmaxmin.qsbase:QsBase:9.9.9";
     private static final String DEPENDENCY_ONLINE_ID = "com.github.qsmaxmin:QsBase:";
-    private static final String TAG_DEFAULT          = "10.10.3";
+    private static final String TAG_DEFAULT          = "10.10.9";
 
     @Override public void apply(@Nonnull Project project) {
         project.getExtensions().create("QsPlugin", MyExtension.class);
