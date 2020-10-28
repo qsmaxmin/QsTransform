@@ -19,7 +19,7 @@ public class PropertyTransform {
     private static final String METHOD_SAVE_PROPERTIES  = "savePropertiesByQsPlugin";
     private static final String METHOD_CLEAR_PROPERTIES = "clearPropertiesByQsPlugin";
 
-    public static void transform(CtClass clazz, String rootPath) throws Exception {
+    public static void transform(CtClass clazz, CtField[] declaredFields) throws Exception {
         if (clazz.isFrozen()) clazz.defrost();
 
         CtMethod baseReadMethod = null;
@@ -52,8 +52,7 @@ public class PropertyTransform {
             clearSB.append("super." + METHOD_CLEAR_PROPERTIES + "();");
         }
 
-        CtField[] fields = clazz.getDeclaredFields();
-        for (CtField field : fields) {
+        for (CtField field : declaredFields) {
             Object ann;
             try {
                 ann = field.getAnnotation(Property.class);
@@ -86,8 +85,6 @@ public class PropertyTransform {
         clazz.addMethod(readMethod);
         clazz.addMethod(saveMethod);
         clazz.addMethod(clearMethod);
-
-        clazz.writeFile(rootPath);
     }
 
     private static String getEmptyValueByType(String typeName) {

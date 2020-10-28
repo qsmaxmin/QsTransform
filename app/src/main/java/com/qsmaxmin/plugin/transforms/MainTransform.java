@@ -209,32 +209,33 @@ public class MainTransform extends Transform {
         if (clazz == null) {
             return false;
         }
-        if (clazz.getAnnotation(AutoProperty.class) != null) {
-            PropertyTransform.transform(clazz, rootPath);
-            state |= STATE_PROPERTY;
-        } else {
-            CtMethod[] declaredMethods = clazz.getDeclaredMethods();
-            CtField[] declaredFields = clazz.getDeclaredFields();
-            if (PresenterTransform.transform(clazz)) {
-                state |= STATE_PRESENTER;
-            }
-            if (EventTransform.transform(clazz, declaredMethods)) {
-                state |= STATE_EVENT;
-            }
-            state |= ViewBindTransform.transform(clazz, declaredMethods, declaredFields, rootPath);
 
-            if (PermissionTransform.transform(clazz, declaredMethods, rootPath)) {
-                state |= STATE_PERMISSION;
-            }
-            if (ThreadPointTransform.transform(clazz, declaredMethods, rootPath)) {
-                state |= STATE_THREAD_POINT;
-            }
-            if (AspectTransform.transform(clazz, declaredMethods, rootPath)) {
-                state |= STATE_ASPECT;
-            }
-            if (state != 0) {
-                clazz.writeFile(rootPath);
-            }
+        CtMethod[] declaredMethods = clazz.getDeclaredMethods();
+        CtField[] declaredFields = clazz.getDeclaredFields();
+        if (clazz.getAnnotation(AutoProperty.class) != null) {
+            PropertyTransform.transform(clazz, declaredFields);
+            state |= STATE_PROPERTY;
+        }
+        if (PresenterTransform.transform(clazz)) {
+            state |= STATE_PRESENTER;
+        }
+        if (EventTransform.transform(clazz, declaredMethods)) {
+            state |= STATE_EVENT;
+        }
+
+        state |= ViewBindTransform.transform(clazz, declaredMethods, declaredFields, rootPath);
+
+        if (PermissionTransform.transform(clazz, declaredMethods, rootPath)) {
+            state |= STATE_PERMISSION;
+        }
+        if (ThreadPointTransform.transform(clazz, declaredMethods, rootPath)) {
+            state |= STATE_THREAD_POINT;
+        }
+        if (AspectTransform.transform(clazz, declaredMethods, rootPath)) {
+            state |= STATE_ASPECT;
+        }
+        if (state != 0) {
+            clazz.writeFile(rootPath);
         }
         showTransformInfoLog(clazz, state);
         return state != 0;

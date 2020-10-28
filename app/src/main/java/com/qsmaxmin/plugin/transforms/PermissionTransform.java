@@ -42,6 +42,9 @@ public class PermissionTransform {
 
                 Permission permission = (Permission) annotation;
                 String[] permissionArr = permission.value();
+                if (permissionArr.length == 0) {
+                    continue;
+                }
                 boolean forceGoOn = permission.forceGoOn();
 
                 addNewMethod(clazz, originalMethod, methodIndex, isStaticMethod);
