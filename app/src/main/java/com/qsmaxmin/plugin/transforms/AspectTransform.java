@@ -191,7 +191,7 @@ public class AspectTransform {
         }
     }
 
-    private static String generateOriginalMethodCode(String tag, String aspectClassName, String joinPointClassName, MethodInfo methodInfo) throws Exception {
+    private static String generateOriginalMethodCode(String tag, String aspectClassName, String joinPointClassName, MethodInfo methodInfo) {
         CtClass[] parameterTypes = methodInfo.parameterTypes;
         StringBuilder argSb = new StringBuilder();
         argSb.append("\"").append(tag).append("\"");
