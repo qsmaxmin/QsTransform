@@ -207,11 +207,11 @@ public class ViewBindTransform {
 
         CtField targetFile = new CtField(clazz, "target", implClass);
         targetFile.setModifiers(Modifier.PRIVATE);
-        TransformHelper.addFiled(implClass, targetFile);
+        TransformHelper.addField(implClass, targetFile);
         if (interval > 0) {
             CtField longFile = new CtField(CtClass.longType, "lastTime", implClass);
             longFile.setModifiers(Modifier.PRIVATE);
-            TransformHelper.addFiled(implClass, longFile);
+            TransformHelper.addField(implClass, longFile);
         }
 
         CtClass[] params = new CtClass[]{clazz};

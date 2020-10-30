@@ -103,7 +103,7 @@ public class TransformHelper {
     }
 
 
-    public static void addFiled(CtClass clazz, CtField field) throws Exception {
+    public static void addField(CtClass clazz, CtField field) throws Exception {
         deleteField(clazz, field.getName());
         clazz.addField(field);
     }

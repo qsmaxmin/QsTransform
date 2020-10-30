@@ -93,7 +93,7 @@ public class PermissionTransform {
                     CtClass pt = parameterTypes[i];
                     CtField f = new CtField(pt, "p" + i, implClass);
                     f.setModifiers(Modifier.PRIVATE);
-                    TransformHelper.addFiled(implClass, f);
+                    TransformHelper.addField(implClass, f);
 
                     sb.append("$0.p").append(i).append(" = $").append(i + 1).append(';');
                 }
@@ -111,14 +111,14 @@ public class PermissionTransform {
         } else {
             CtField field = new CtField(clazz, "target", implClass);
             field.setModifiers(Modifier.PRIVATE);
-            TransformHelper.addFiled(implClass, field);
+            TransformHelper.addField(implClass, field);
             CtClass[] params;
             if (parameterTypes != null && parameterTypes.length > 0) {
                 for (int i = 0; i < parameterTypes.length; i++) {
                     CtClass pt = parameterTypes[i];
                     CtField f = new CtField(pt, "p" + i, implClass);
                     f.setModifiers(Modifier.PRIVATE);
-                    TransformHelper.addFiled(implClass, f);
+                    TransformHelper.addField(implClass, f);
                 }
                 params = new CtClass[parameterTypes.length + 1];
                 params[0] = clazz;

@@ -25,6 +25,9 @@ public class AspectTransform {
     private static CtClass  jointPointClass;
     private static CtMethod proceedMethod;
     private static CtMethod getTargetMethod;
+    private static CtMethod getArgsMethod;
+    private static CtMethod getTagMethod;
+    private static CtClass  stringClass;
 
     public static boolean transform(CtClass clazz, CtMethod[] declaredMethods, String rootPath) throws Exception {
         if (clazz.isFrozen()) clazz.defrost();
@@ -33,6 +36,9 @@ public class AspectTransform {
             jointPointClass = TransformHelper.getInstance().get(JoinPoint.class.getName());
             proceedMethod = jointPointClass.getDeclaredMethod("proceed");
             getTargetMethod = jointPointClass.getDeclaredMethod("getTarget");
+            getArgsMethod = jointPointClass.getDeclaredMethod("getArgs");
+            getTagMethod = jointPointClass.getDeclaredMethod("getTag");
+            stringClass = TransformHelper.getInstance().get(String.class.getName());
         }
         int methodIndex = 0;
         for (CtMethod originalMethod : declaredMethods) {
@@ -40,215 +46,187 @@ public class AspectTransform {
             if (ann != null) {
                 String aspectClassName = getAspectClassName(originalMethod);
                 if (aspectClassName == null) continue;
+                QsAspect aspect = (QsAspect) ann;
 
                 MethodInfo methodInfo = getReturnInfo(originalMethod);
 
                 addNewMethod(clazz, originalMethod, methodIndex, methodInfo);
                 CtClass jointPointClass = createJointPointClass(clazz, originalMethod, methodIndex, methodInfo);
 
-                String code = generateOriginalMethodCode(originalMethod, aspectClassName, jointPointClass.getName(), methodInfo);
+                String code = generateOriginalMethodCode(aspect.tag(), aspectClassName, jointPointClass.getName(), methodInfo);
                 originalMethod.setBody(code);
 
                 jointPointClass.writeFile(rootPath);
                 methodIndex++;
             }
-
         }
         return methodIndex > 0;
     }
 
+    private static CtClass[] getNewConstructParams(CtClass clazz, CtClass[] parameterTypes, MethodInfo methodInfo) {
+        int appendLen = methodInfo.isStaticMethod ? 1 : 2;
+        CtClass[] ctClasses;
+        if (parameterTypes == null || parameterTypes.length == 0) {
+            ctClasses = new CtClass[appendLen];
+        } else {
+            ctClasses = new CtClass[parameterTypes.length + appendLen];
+            System.arraycopy(parameterTypes, 0, ctClasses, appendLen, parameterTypes.length);
+        }
+        if (methodInfo.isStaticMethod) {
+            ctClasses[0] = stringClass;
+        } else {
+            ctClasses[0] = clazz;
+            ctClasses[1] = stringClass;
+        }
+        return ctClasses;
+    }
 
     private static CtClass createJointPointClass(CtClass clazz, CtMethod originalMethod, int methodIndex, MethodInfo methodInfo) throws Exception {
         String implClassName = clazz.getName() + "_QsAspect" + methodIndex;
         CtClass implClass = TransformHelper.getInstance().makeClassIfNotExists(implClassName);
         if (implClass.isFrozen()) implClass.defrost();
 
+        CtClass[] parameterTypes = getNewConstructParams(clazz, methodInfo.parameterTypes, methodInfo);
+
         implClass.setInterfaces(new CtClass[]{jointPointClass});
-        CtClass[] parameterTypes = originalMethod.getParameterTypes();
+        CtConstructor constructor = new CtConstructor(parameterTypes, implClass);
+        CtMethod proceedMethodImpl = new CtMethod(proceedMethod, implClass, null);
+        CtMethod getArgsMethodImpl = new CtMethod(getArgsMethod, implClass, null);
+        CtMethod getTargetMethodImpl = new CtMethod(getTargetMethod, implClass, null);
+        CtMethod getTagMethodImpl = new CtMethod(getTagMethod, implClass, null);
+
+        StringBuilder constructBuilder = new StringBuilder("{");
+        StringBuilder argsBuilder = new StringBuilder();
+        for (int i = 0; i < parameterTypes.length; i++) {
+            CtClass pt = parameterTypes[i];
+            CtField f = new CtField(pt, "p" + i, implClass);
+            f.setModifiers(Modifier.PRIVATE);
+            TransformHelper.addField(implClass, f);
+            constructBuilder.append("$0.p").append(i).append(" = $").append(i + 1).append(';');
+
+            if ((methodInfo.isStaticMethod && i > 0) || (!methodInfo.isStaticMethod && i > 1)) {
+                CtClass p = parameterTypes[i];
+                switch (p.getName()) {
+                    case "int":
+                        argsBuilder.append(Integer.class.getName()).append(".valueOf(").append('$').append(i + 1).append(')');
+                        break;
+                    case "long":
+                        argsBuilder.append(Long.class.getName()).append(".valueOf(").append('$').append(i + 1).append(')');
+                        break;
+                    case "float":
+                        argsBuilder.append(Float.class.getName()).append(".valueOf(").append('$').append(i + 1).append(')');
+                        break;
+                    case "double":
+                        argsBuilder.append(Double.class.getName()).append(".valueOf(").append('$').append(i + 1).append(')');
+                        break;
+                    case "boolean":
+                        argsBuilder.append(Boolean.class.getName()).append(".valueOf(").append('$').append(i + 1).append(')');
+                    case "char":
+                        break;
+                    case "short":
+                        argsBuilder.append(Short.class.getName()).append(".valueOf(").append('$').append(i + 1).append(')');
+                        break;
+                    case "byte":
+                        argsBuilder.append(Byte.class.getName()).append(".valueOf(").append('$').append(i + 1).append(')');
+                        break;
+                    default:
+                        argsBuilder.append("$").append(i + 1);
+                        break;
+                }
+                if (i != parameterTypes.length - 1) argsBuilder.append(',');
+            }
+        }
+        if (argsBuilder.length() > 0) {
+            String objectName = Object.class.getName();
+            constructBuilder.append("$0.args=new ").append(objectName).append("[]{").append(argsBuilder.toString()).append("};");
+
+            CtClass ctClass = TransformHelper.getInstance().get(objectName + "[]");
+            CtField argsField = new CtField(ctClass, "args", implClass);
+            argsField.setModifiers(Modifier.PRIVATE);
+            TransformHelper.addField(implClass, argsField);
+            getArgsMethodImpl.setBody("{return args;}");
+        } else {
+            getArgsMethodImpl.setBody("{return null;}");
+        }
+        constructor.setBody(constructBuilder.append('}').toString());
+        TransformHelper.addConstructor(implClass, constructor);
+        TransformHelper.addMethod(implClass, getArgsMethodImpl);
 
         if (methodInfo.isStaticMethod) {
-            CtConstructor constructor = new CtConstructor(parameterTypes, implClass);
-            if (parameterTypes != null && parameterTypes.length > 0) {
-                StringBuilder sb = new StringBuilder("{");
-                for (int i = 0; i < parameterTypes.length; i++) {
-                    CtClass pt = parameterTypes[i];
-                    CtField f = new CtField(pt, "p" + i, implClass);
-                    f.setModifiers(Modifier.PRIVATE);
-                    TransformHelper.addFiled(implClass, f);
-
-                    sb.append("$0.p").append(i).append(" = $").append(i + 1).append(';');
-                }
-                constructor.setBody(sb.append('}').toString());
-            } else {
-                constructor.setBody("{}");
-            }
-            TransformHelper.addConstructor(implClass, constructor);
-
-            CtMethod proceedMethodImpl = new CtMethod(proceedMethod, implClass, null);
-            String newMethodName = getNewMethodName(originalMethod, methodIndex);
-            proceedMethodImpl.setBody(createImplMethodBodyStatic(clazz.getName(), newMethodName, parameterTypes, methodInfo));
-            TransformHelper.addMethod(implClass, proceedMethodImpl);
-
-            CtMethod getTargetMethodImpl = new CtMethod(getTargetMethod, implClass, null);
-            getTargetMethodImpl.setBody("{return null;}");
-            TransformHelper.addMethod(implClass, getTargetMethodImpl);
-
+            getTagMethodImpl.setBody("{return " + "p0" + ";}");
+            getTargetMethodImpl.setBody("{return " + "null" + ";}");
         } else {
-            CtField field = new CtField(clazz, "target", implClass);
-            field.setModifiers(Modifier.PRIVATE);
-            TransformHelper.addFiled(implClass, field);
-            CtClass[] params;
-            if (parameterTypes != null && parameterTypes.length > 0) {
-                for (int i = 0; i < parameterTypes.length; i++) {
-                    CtClass pt = parameterTypes[i];
-                    CtField f = new CtField(pt, "p" + i, implClass);
-                    f.setModifiers(Modifier.PRIVATE);
-                    TransformHelper.addFiled(implClass, f);
-                }
-                params = new CtClass[parameterTypes.length + 1];
-                params[0] = clazz;
-                System.arraycopy(parameterTypes, 0, params, 1, parameterTypes.length);
-            } else {
-                params = new CtClass[]{clazz};
-            }
-
-            CtConstructor constructor = new CtConstructor(params, implClass);
-            StringBuilder sb = new StringBuilder("{$0.target = $1;");
-            for (int i = 1; i < params.length; i++) {
-                sb.append("$0.p").append(i - 1).append(" = $").append(i + 1).append(';');
-            }
-            constructor.setBody(sb.append('}').toString());
-            TransformHelper.addConstructor(implClass, constructor);
-
-            CtMethod proceedMethodImpl = new CtMethod(proceedMethod, implClass, null);
-            String newMethodName = getNewMethodName(originalMethod, methodIndex);
-            proceedMethodImpl.setBody(createImplMethodBody(newMethodName, parameterTypes, methodInfo));
-            TransformHelper.addMethod(implClass, proceedMethodImpl);
-
-            CtMethod getTargetMethodImpl = new CtMethod(getTargetMethod, implClass, null);
-            getTargetMethodImpl.setBody("{return target;}");
-            TransformHelper.addMethod(implClass, getTargetMethodImpl);
+            getTagMethodImpl.setBody("{return " + "p1" + ";}");
+            getTargetMethodImpl.setBody("{return " + "p0" + ";}");
         }
+        TransformHelper.addMethod(implClass, getTargetMethodImpl);
+        TransformHelper.addMethod(implClass, getTagMethodImpl);
+
+        String newMethodName = getNewMethodName(originalMethod, methodIndex);
+        proceedMethodImpl.setBody(createImplMethodBody(clazz, newMethodName, parameterTypes, methodInfo));
+        TransformHelper.addMethod(implClass, proceedMethodImpl);
+
         return implClass;
     }
 
-    private static String createImplMethodBodyStatic(String className, String newMethodName, CtClass[] parameterTypes, MethodInfo methodInfo) {
-        if (parameterTypes != null && parameterTypes.length > 0) {
-            StringBuilder sb = new StringBuilder();
-            for (int i = 0; i < parameterTypes.length; i++) {
-                sb.append("$0.p").append(i);
-                if (i != parameterTypes.length - 1) sb.append(',');
-            }
-            if (methodInfo.hasReturnValue) {
-                if (methodInfo.isCommonlyType) {
-                    return "{" + methodInfo.typeName + " value = " + className + "." + newMethodName + "(" + sb.toString() + "); return new " + methodInfo.castedTypeName + "(value);}";
-                } else {
-                    return "{return " + className + "." + newMethodName + "(" + sb.toString() + ");}";
-                }
+    private static String createImplMethodBody(CtClass clazz, String newMethodName, CtClass[] parameterTypes, MethodInfo methodInfo) {
+        String className = clazz.getName();
+        int fromIndex = methodInfo.isStaticMethod ? 1 : 2;
+        StringBuilder sb = null;
+        for (int i = fromIndex; i < parameterTypes.length; i++) {
+            if (sb == null) sb = new StringBuilder();
+            sb.append("$0.p").append(i);
+            if (i != parameterTypes.length - 1) sb.append(',');
+        }
+        String p = (sb == null ? "" : sb.toString());
+        String targetObj = methodInfo.isStaticMethod ? className : "p0";
+        if (methodInfo.hasReturnValue) {
+            if (methodInfo.isBasicReturnType) {
+                return "{" + methodInfo.typeName + " value=" + targetObj + "." + newMethodName + "(" + p + ");return new " + methodInfo.castedTypeName + "(value);}";
             } else {
-                return "{" + className + "." + newMethodName + "(" + sb.toString() + "); return null;}";
+                return "{return " + targetObj + "." + newMethodName + "(" + p + ");}";
             }
         } else {
-            if (methodInfo.hasReturnValue) {
-                if (methodInfo.isCommonlyType) {
-                    return "{" + methodInfo.typeName + " value = " + className + "." + newMethodName + "(); return new " + methodInfo.castedTypeName + "(value);}";
-                } else {
-                    return "{return " + className + "." + newMethodName + "();}";
-                }
-            } else {
-                return "{" + className + "." + newMethodName + "(); return null;}";
-            }
+            return "{" + targetObj + "." + newMethodName + "(" + p + "); return null;}";
         }
     }
 
-    private static String createImplMethodBody(String newMethodName, CtClass[] parameterTypes, MethodInfo methodInfo) {
+    private static String generateOriginalMethodCode(String tag, String aspectClassName, String joinPointClassName, MethodInfo methodInfo) throws Exception {
+        CtClass[] parameterTypes = methodInfo.parameterTypes;
+        StringBuilder argSb = new StringBuilder();
+        argSb.append("\"").append(tag).append("\"");
         if (parameterTypes != null && parameterTypes.length > 0) {
-            StringBuilder sb = new StringBuilder();
             for (int i = 0; i < parameterTypes.length; i++) {
-                sb.append("$0.p").append(i);
-                if (i != parameterTypes.length - 1) sb.append(',');
-            }
-            if (methodInfo.hasReturnValue) {
-                if (methodInfo.isCommonlyType) {
-                    return "{" + methodInfo.typeName + " value = target." + newMethodName + "(" + sb.toString() + "); return new " + methodInfo.castedTypeName + "(value);}";
-                } else {
-                    return "{return target." + newMethodName + "(" + sb.toString() + ");}";
-                }
-            } else {
-                return "{target." + newMethodName + "(" + sb.toString() + "); return null;}";
-            }
-        } else {
-            if (methodInfo.hasReturnValue) {
-                if (methodInfo.isCommonlyType) {
-                    return "{" + methodInfo.typeName + " value = target." + newMethodName + "(); return new " + methodInfo.castedTypeName + "(value);}";
-                } else {
-                    return "{return (" + methodInfo.castedTypeName + ")target." + newMethodName + "();}";
-                }
-            } else {
-                return "{target." + newMethodName + "(); return null;}";
+                argSb.append(",$").append(i + 1);
             }
         }
-    }
 
-
-    private static String generateOriginalMethodCode(CtMethod originalMethod, String aspectClassName, String joinPointClassName, MethodInfo methodInfo) throws Exception {
-        String args = "";
-        CtClass[] parameterTypes = originalMethod.getParameterTypes();
-        if (parameterTypes != null && parameterTypes.length > 0) {
-            StringBuilder sb = new StringBuilder();
-            for (int i = 0; i < parameterTypes.length; i++) {
-                sb.append('$').append(i + 1);
-                if (i != parameterTypes.length - 1) sb.append(',');
-            }
-            args = sb.toString();
-        }
-
-        StringBuilder sb = new StringBuilder("{" + QsIAspect.class.getName() + " aspect = new " + aspectClassName + "();");
+        StringBuilder bodySb = new StringBuilder("{" + QsIAspect.class.getName() + " aspect = new " + aspectClassName + "();");
+        String args;
         if (methodInfo.isStaticMethod) {
-            if (methodInfo.hasReturnValue) {
-                if (methodInfo.isCommonlyType) {
-                    sb.append(methodInfo.castedTypeName).append(" value = (").append(methodInfo.castedTypeName).append(")aspect.around(new ").append(joinPointClassName).append("(").append(args).append("));");
-                    sb.append("return value.").append(methodInfo.castMethod).append("();");
-                } else {
-                    sb.append("return (").append(methodInfo.castedTypeName).append(")aspect.around(new ").append(joinPointClassName).append("(").append(args).append("));");
-                }
+            args = argSb.toString();
+        } else {
+            args = "$0," + argSb.toString();
+        }
+        if (methodInfo.hasReturnValue) {
+            if (methodInfo.isBasicReturnType) {
+                bodySb.append(methodInfo.castedTypeName).append(" value = (").append(methodInfo.castedTypeName).append(")aspect.around(new ").append(joinPointClassName).append("(").append(args).append("));");
+                bodySb.append("return value.").append(methodInfo.castMethod).append("();");
             } else {
-                sb.append("aspect.around(new ").append(joinPointClassName).append("(").append(args).append("));");
+                bodySb.append("return (").append(methodInfo.castedTypeName).append(")aspect.around(new ").append(joinPointClassName).append("(").append(args).append("));");
             }
         } else {
-            if (args.length() == 0) {
-                if (methodInfo.hasReturnValue) {
-                    if (methodInfo.isCommonlyType) {
-                        sb.append(methodInfo.castedTypeName).append(" value = (").append(methodInfo.castedTypeName).append(")aspect.around(new ").append(joinPointClassName).append("($0));");
-                        sb.append("return value.").append(methodInfo.castMethod).append("();");
-                    } else {
-                        sb.append("return (").append(methodInfo.castedTypeName).append(")aspect.around(new ").append(joinPointClassName).append("($0));");
-                    }
-                } else {
-                    sb.append("aspect.around(new ").append(joinPointClassName).append("($0));");
-                }
-            } else {
-                if (methodInfo.hasReturnValue) {
-                    if (methodInfo.isCommonlyType) {
-                        sb.append(methodInfo.castedTypeName).append(" value = (").append(methodInfo.castedTypeName).append(")aspect.around(new ").append(joinPointClassName).append("($0,").append(args).append("));");
-                        sb.append("return value.").append(methodInfo.castMethod).append("();");
-                    } else {
-                        sb.append("return (").append(methodInfo.castedTypeName).append(")aspect.around(new ").append(joinPointClassName).append("($0,").append(args).append("));");
-                    }
-                } else {
-                    sb.append("aspect.around(new ").append(joinPointClassName).append("($0,").append(args).append("));");
-                }
-            }
+            bodySb.append("aspect.around(new ").append(joinPointClassName).append("(").append(args).append("));");
         }
-        return sb.append('}').toString();
+        return bodySb.append('}').toString();
     }
-
 
     private static MethodInfo getReturnInfo(CtMethod originalMethod) throws Exception {
         MethodInfo value = new MethodInfo();
         CtClass returnType = originalMethod.getReturnType();
         value.isStaticMethod = Modifier.isStatic(originalMethod.getModifiers());
         value.typeName = returnType.getName();
+        value.parameterTypes = originalMethod.getParameterTypes();
 
         if (returnType == CtClass.voidType) {
             value.hasReturnValue = false;
@@ -258,47 +236,47 @@ public class AspectTransform {
         String name = returnType.getName();
         switch (name) {
             case "int":
-                value.isCommonlyType = true;
+                value.isBasicReturnType = true;
                 value.castedTypeName = Integer.class.getName();
                 value.castMethod = "intValue";
                 break;
             case "long":
-                value.isCommonlyType = true;
+                value.isBasicReturnType = true;
                 value.castedTypeName = Long.class.getName();
                 value.castMethod = "longValue";
                 break;
             case "float":
-                value.isCommonlyType = true;
+                value.isBasicReturnType = true;
                 value.castedTypeName = Float.class.getName();
                 value.castMethod = "floatValue";
                 break;
             case "double":
-                value.isCommonlyType = true;
+                value.isBasicReturnType = true;
                 value.castedTypeName = Double.class.getName();
                 value.castMethod = "doubleValue";
                 break;
             case "byte":
-                value.isCommonlyType = true;
+                value.isBasicReturnType = true;
                 value.castedTypeName = Byte.class.getName();
                 value.castMethod = "byteValue";
                 break;
             case "short":
-                value.isCommonlyType = true;
+                value.isBasicReturnType = true;
                 value.castedTypeName = Short.class.getName();
                 value.castMethod = "shortValue";
                 break;
             case "boolean":
-                value.isCommonlyType = true;
+                value.isBasicReturnType = true;
                 value.castedTypeName = Boolean.class.getName();
                 value.castMethod = "booleanValue";
                 break;
             case "char":
-                value.isCommonlyType = true;
+                value.isBasicReturnType = true;
                 value.castedTypeName = Character.class.getName();
                 value.castMethod = "charValue";
                 break;
             default:
-                value.isCommonlyType = false;
+                value.isBasicReturnType = false;
                 value.castedTypeName = name;
                 value.castMethod = null;
                 break;
@@ -307,12 +285,13 @@ public class AspectTransform {
     }
 
     private static class MethodInfo {
-        boolean isStaticMethod;
-        boolean hasReturnValue;
-        boolean isCommonlyType;
-        String  castedTypeName;
-        String  typeName;
-        String  castMethod;
+        boolean   isStaticMethod;
+        boolean   hasReturnValue;
+        boolean   isBasicReturnType;
+        String    castedTypeName;
+        String    typeName;
+        String    castMethod;
+        CtClass[] parameterTypes;
     }
 
     /**
