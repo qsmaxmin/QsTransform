@@ -19,6 +19,7 @@ import com.qsmaxmin.plugin.helper.TransformHelper;
 
 import org.gradle.api.Project;
 import org.gradle.api.file.FileCollection;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -149,8 +150,11 @@ public class MainTransform extends Transform {
                                 changedFileList = new ArrayList<>();
                                 totalChangedMap.put(destDir.getAbsolutePath(), changedFileList);
                             }
-                            totalChangedSize++;
-                            changedFileList.add(createCtClass(destFilePath));
+                            CtClass ctClass = createCtClass(destFilePath);
+                            if (ctClass != null) {
+                                totalChangedSize++;
+                                changedFileList.add(ctClass);
+                            }
                         }
                     }
                 }
@@ -162,7 +166,10 @@ public class MainTransform extends Transform {
 
                 changedFileList = new ArrayList<>();
                 for (String path : tempList) {
-                    changedFileList.add(createCtClass(path));
+                    CtClass ctClass = createCtClass(path);
+                    if (ctClass != null) {
+                        changedFileList.add(ctClass);
+                    }
                 }
                 totalChangedMap.put(destDir.getAbsolutePath(), changedFileList);
             }
@@ -185,7 +192,7 @@ public class MainTransform extends Transform {
     }
 
     private void filterOutJavaClass(File file, List<String> filePathList) {
-        if (file.isFile()) {
+        if (file.isFile() && file.getName().endsWith(".class")) {
             filePathList.add(file.getAbsolutePath());
         } else if (file.isDirectory()) {
             File[] files = file.listFiles();
@@ -197,11 +204,17 @@ public class MainTransform extends Transform {
         }
     }
 
-    private CtClass createCtClass(String filePath) throws Exception {
-        FileInputStream fis = new FileInputStream(filePath);
-        CtClass ctClass = TransformHelper.getInstance().makeClass(fis, false);
-        fis.close();
-        return ctClass;
+    @Nullable private CtClass createCtClass(String filePath) {
+        FileInputStream fis = null;
+        try {
+            fis = new FileInputStream(filePath);
+            return TransformHelper.getInstance().makeClass(fis, false);
+        } catch (Exception e) {
+            println("can not create CtClass from filePath:" + filePath);
+        } finally {
+            TransformHelper.closeStream(fis);
+        }
+        return null;
     }
 
     private boolean processJavaClassFile(String rootPath, CtClass clazz) throws Exception {
