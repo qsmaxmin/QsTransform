@@ -57,11 +57,4 @@ public class PresenterTransform {
         }
         return null;
     }
-
-    private static String getBodyCode(String presenterClassName) {
-        String c0 = presenterClassName + " p = new " + presenterClassName + "();";
-
-        return "{ " + c0
-                + "return c0;}";
-    }
 }
