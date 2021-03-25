@@ -27,7 +27,6 @@ public class ViewBindTransform {
     private static final String   METHOD_BIND_BUNDLE    = "bindBundleByQsPlugin";
     private static final String   PATH_VIEW             = "android.view.View";
     private static final String   PATH_BUNDLE           = "android.os.Bundle";
-    private static       CtClass  helperClass;
     private static       CtClass  listenerClass;
     private static       CtMethod onClickMethod;
 
@@ -37,7 +36,6 @@ public class ViewBindTransform {
                 if (listenerClass == null) {
                     listenerClass = TransformHelper.getInstance().get("android.view.View$OnClickListener");
                     onClickMethod = listenerClass.getDeclaredMethod("onClick");
-                    helperClass = TransformHelper.getInstance().get(PATH_BIND_HELPER);
                 }
             }
         }
