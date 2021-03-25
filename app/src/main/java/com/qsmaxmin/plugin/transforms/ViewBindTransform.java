@@ -22,10 +22,12 @@ import javassist.Modifier;
 public class ViewBindTransform {
     private static final String   INTERFACE_BIND_VIEW   = "com.qsmaxmin.qsbase.plugin.bind.QsIBindView";
     private static final String   INTERFACE_BIND_BUNDLE = "com.qsmaxmin.qsbase.plugin.bind.QsIBindBundle";
+    private static final String   PATH_BIND_HELPER      = "com.qsmaxmin.qsbase.plugin.bind.ViewBindHelper";
     private static final String   METHOD_BIND_VIEW      = "bindViewByQsPlugin";
     private static final String   METHOD_BIND_BUNDLE    = "bindBundleByQsPlugin";
     private static final String   PATH_VIEW             = "android.view.View";
     private static final String   PATH_BUNDLE           = "android.os.Bundle";
+    private static       CtClass  helperClass;
     private static       CtClass  listenerClass;
     private static       CtMethod onClickMethod;
 
@@ -35,6 +37,7 @@ public class ViewBindTransform {
                 if (listenerClass == null) {
                     listenerClass = TransformHelper.getInstance().get("android.view.View$OnClickListener");
                     onClickMethod = listenerClass.getDeclaredMethod("onClick");
+                    helperClass = TransformHelper.getInstance().get(PATH_BIND_HELPER);
                 }
             }
         }
@@ -102,10 +105,13 @@ public class ViewBindTransform {
             String bk = bindBundle.value();
             String typeName = field.getType().getName();
             String bundleMethodName = getBundleMethodName(typeName);
+
             if (bundleMethodName == null) {
-                sb.append("$0.").append(field.getName()).append("=(").append(typeName).append(")$1.get(\"").append(bk).append("\");");
+                sb.append("$0.").append(field.getName()).append("=(").append(typeName).append(")").append(PATH_BIND_HELPER).append(".get($1,\"").append(bk).append("\");");
+//                sb.append("$0.").append(field.getName()).append("=(").append(typeName).append(")$1.get(\"").append(bk).append("\");");
             } else {
-                sb.append("$0.").append(field.getName()).append("=$1.").append(bundleMethodName).append("(\"").append(bk).append("\");");
+                sb.append("$0.").append(field.getName()).append("=").append(PATH_BIND_HELPER).append(".").append(bundleMethodName).append("($1,\"").append(bk).append("\");");
+//                sb.append("$0.").append(field.getName()).append("=$1.").append(bundleMethodName).append("(\"").append(bk).append("\");");
             }
         }
         String code = sb.append("}").toString();
@@ -139,6 +145,8 @@ public class ViewBindTransform {
                 return "getBoolean";
             case "short":
                 return "getShort";
+            case "java.lang.String":
+                return "getString";
             default:
                 return null;
         }
@@ -151,6 +159,8 @@ public class ViewBindTransform {
         if (ctMethod == null && !hasInterface) {
             sb.append("super." + METHOD_BIND_VIEW + "($1);");
         }
+        sb.append("if($1==null)return;");
+
         HashSet<Integer> bindIds = null;
         if (bindMap != null) {
             bindIds = new HashSet<>();
