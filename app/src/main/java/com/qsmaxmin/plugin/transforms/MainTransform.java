@@ -232,7 +232,7 @@ public class MainTransform extends Transform {
         if (PresenterTransform.transform(clazz)) {
             state |= STATE_PRESENTER;
         }
-        if (EventTransform.transform(clazz, declaredMethods)) {
+        if (EventTransform.transform(clazz, declaredMethods, rootPath)) {
             state |= STATE_EVENT;
         }
 

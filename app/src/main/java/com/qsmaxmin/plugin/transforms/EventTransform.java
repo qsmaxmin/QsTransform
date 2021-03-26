@@ -8,7 +8,10 @@ import java.util.List;
 
 import javassist.CannotCompileException;
 import javassist.CtClass;
+import javassist.CtConstructor;
+import javassist.CtField;
 import javassist.CtMethod;
+import javassist.Modifier;
 
 /**
  * @CreateBy qsmaxmin
@@ -16,13 +19,29 @@ import javassist.CtMethod;
  * @Description
  */
 public class EventTransform {
-    private static final String CLASS_EVENT_HELPER = "com.qsmaxmin.qsbase.plugin.event.EventHelper";
-    private static final String METHOD_BIND        = "bindEventByQsPlugin";
-    private static final String METHOD_UNBIND      = "unbindEventByQsPlugin";
-    private static final String METHOD_REGISTER    = "register";
-    private static final String METHOD_UNREGISTER  = "unregister";
+    private static final String   CLASS_EVENT_HELPER  = "com.qsmaxmin.qsbase.plugin.event.EventHelper";
+    private static final String   CLASS_EVENT_HANDLER = "com.qsmaxmin.qsbase.plugin.event.EventHandler";
+    private static final String   METHOD_BIND         = "bindEventByQsPlugin";
+    private static final String   METHOD_UNBIND       = "unbindEventByQsPlugin";
+    private static final String   METHOD_REGISTER     = "register";
+    private static final String   METHOD_UNREGISTER   = "unregister";
+    private static       CtClass  handlerInterfaceClass;
+    private static       CtClass  javaClass;
+    private static       CtMethod executeMethod;
+    private static       CtMethod getParamsClassMethod;
 
-    public static boolean transform(CtClass clazz, CtMethod[] declaredMethods) throws Exception {
+    public static boolean transform(CtClass clazz, CtMethod[] declaredMethods, String rootPath) throws Exception {
+        if (handlerInterfaceClass == null) {
+            synchronized (ThreadPointTransform.class) {
+                if (handlerInterfaceClass == null) {
+                    handlerInterfaceClass = TransformHelper.getInstance().get(CLASS_EVENT_HANDLER);
+                    executeMethod = handlerInterfaceClass.getDeclaredMethod("execute");
+                    getParamsClassMethod = handlerInterfaceClass.getDeclaredMethod("getParamsClass");
+                    javaClass = TransformHelper.getInstance().get("java.lang.Class");
+                }
+            }
+        }
+
         List<CtMethod> list = null;
         for (CtMethod method : declaredMethods) {
             Object ann = method.getAnnotation(Subscribe.class);
@@ -35,7 +54,7 @@ public class EventTransform {
         if (list != null && list.size() > 0) {
             checkCanTransform(clazz);
 
-            String bindCode = getBindMethodBodyCode(clazz, list);
+            String bindCode = getBindMethodBodyCode(clazz, list, rootPath);
 
             CtMethod bindMethod = TransformHelper.getDeclaredMethod(clazz, METHOD_BIND);
             if (bindMethod != null) {
@@ -46,7 +65,7 @@ public class EventTransform {
                 TransformHelper.addMethod(clazz, bindMethod);
             }
 
-            String unbindCode = getUnbindMethodBodyCode(clazz, list);
+            String unbindCode = "{" + CLASS_EVENT_HELPER + "." + METHOD_UNREGISTER + "($0);}";
             CtMethod unbindMethod = TransformHelper.getDeclaredMethod(clazz, METHOD_UNBIND);
             if (unbindMethod != null) {
                 unbindMethod.insertAfter(unbindCode);
@@ -67,17 +86,24 @@ public class EventTransform {
         }
     }
 
-    private static String getUnbindMethodBodyCode(CtClass clazz, List<CtMethod> list) throws Exception {
-        StringBuilder mainSB = new StringBuilder("{" + CLASS_EVENT_HELPER + "." + METHOD_UNREGISTER + "($0,");
+    private static String getBindMethodBodyCode(CtClass clazz, List<CtMethod> list, String rootPath) throws Exception {
+        StringBuilder mainSB = new StringBuilder("{" + CLASS_EVENT_HELPER + "." + METHOD_REGISTER + "($0,");
 
-        StringBuilder sb = new StringBuilder("new Class[]{");
+        StringBuilder sb = new StringBuilder("new " + CLASS_EVENT_HANDLER + "[]{");
+
         for (int i = 0, size = list.size(); i < size; i++) {
             CtMethod method = list.get(i);
+            String methodName = method.getName();
             CtClass[] types = method.getParameterTypes();
+            if (types == null || types.length != 1) {
+                throw new CannotCompileException("class:" + clazz.getName() + ", method:" + methodName + " with @Subscribe can only be one parameter");
+            }
+            CtClass paramType = types[0];
 
-            CtClass paramCtClass = types[0];
-            String paramClassName = paramCtClass.getName();
-            sb.append(paramClassName).append(".class");
+            CtClass handlerClass = createEventHandlerClass(clazz, methodName, paramType, i);
+            handlerClass.writeFile(rootPath);
+
+            sb.append("new ").append(handlerClass.getName()).append("(this, ").append(paramType.getName()).append(".class)");
             if (i != size - 1) {
                 sb.append(',');
             } else {
@@ -87,32 +113,35 @@ public class EventTransform {
         return mainSB.append(sb.toString()).append(");}").toString();
     }
 
-    private static String getBindMethodBodyCode(CtClass clazz, List<CtMethod> list) throws Exception {
-        StringBuilder mainSB = new StringBuilder("{" + CLASS_EVENT_HELPER + "." + METHOD_REGISTER + "($0,");
 
-        StringBuilder sb0 = new StringBuilder("new String[]{");
-        StringBuilder sb1 = new StringBuilder("new Class[]{");
+    private static CtClass createEventHandlerClass(CtClass clazz, String methodName, CtClass parameterClass, int methodIndex) throws Exception {
+        String implClassName = clazz.getName() + "_QsHandler" + methodIndex;
+        CtClass implClass = TransformHelper.getInstance().makeClassIfNotExists(implClassName);
+        if (implClass.isFrozen()) implClass.defrost();
+        implClass.setSuperclass(handlerInterfaceClass);
 
-        for (int i = 0, size = list.size(); i < size; i++) {
-            CtMethod method = list.get(i);
-            String methodName = method.getName();
-            CtClass[] types = method.getParameterTypes();
-            if (types == null || types.length != 1) {
-                throw new CannotCompileException("class:" + clazz.getName() + ", method:" + methodName + " with @Subscribe can only be one parameter");
-            }
-            CtClass paramCtClass = types[0];
-            String paramClassName = paramCtClass.getName();
+        CtField targetField = new CtField(clazz, "target", implClass);
+        targetField.setModifiers(Modifier.PRIVATE);
+        TransformHelper.addField(implClass, targetField);
 
-            sb0.append("\"").append(methodName).append("\"");
-            sb1.append(paramClassName).append(".class");
-            if (i != size - 1) {
-                sb0.append(',');
-                sb1.append(',');
-            } else {
-                sb0.append('}');
-                sb1.append('}');
-            }
-        }
-        return mainSB.append(sb0.toString()).append(",").append(sb1.toString()).append(");}").toString();
+        CtField paramField = new CtField(javaClass, "clazz", implClass);
+        paramField.setModifiers(Modifier.PRIVATE);
+        TransformHelper.addField(implClass, paramField);
+
+        CtClass[] params = new CtClass[]{clazz, javaClass};
+        CtConstructor constructor = new CtConstructor(params, implClass);
+        constructor.setBody("{$0.target = $1;$0.clazz=$2;}");
+        TransformHelper.addConstructor(implClass, constructor);
+
+        String typeName = parameterClass.getName();
+        CtMethod executeMethodImpl = new CtMethod(executeMethod, implClass, null);
+        executeMethodImpl.setBody("{target." + methodName + "((" + typeName + ")$1);}");
+        TransformHelper.addMethod(implClass, executeMethodImpl);
+
+        CtMethod getParamsClassMethodImpl = new CtMethod(getParamsClassMethod, implClass, null);
+        getParamsClassMethodImpl.setBody("{return clazz;}");
+        TransformHelper.addMethod(implClass, getParamsClassMethodImpl);
+
+        return implClass;
     }
 }
