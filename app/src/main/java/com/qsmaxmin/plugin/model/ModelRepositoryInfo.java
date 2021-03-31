@@ -1,13 +1,13 @@
-package com.qsmaxmin.plugin.extension;
+package com.qsmaxmin.plugin.model;
 
 import java.util.List;
 
 /**
  * @CreateBy qsmaxmin
  * @Date 2020/9/28 18:13
- * @Description
+ * @Description github库信息
  */
-public class ModelQsBaseInfo {
+public class ModelRepositoryInfo {
 
     /**
      * url : https://api.github.com/repos/qsmaxmin/QsBase/releases/31874819

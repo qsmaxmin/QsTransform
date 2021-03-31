@@ -1,8 +1,16 @@
 package com.qsmaxmin.plugin.helper;
 
+import com.google.gson.Gson;
+import com.qsmaxmin.plugin.model.ModelRepositoryInfo;
+
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
+
+import javax.annotation.Nonnull;
 
 import javassist.ClassPool;
 import javassist.CtClass;
@@ -235,6 +243,30 @@ public class TransformHelper {
                 closeable.close();
             } catch (IOException ignored) {
             }
+        }
+    }
+
+
+    @Nonnull public static ModelRepositoryInfo getModelConfigInfo(String host, Gson gson) throws Exception {
+        InputStreamReader isr = null;
+        HttpURLConnection conn = null;
+        try {
+            URL url = new URL(host);
+            conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("GET");
+            conn.setConnectTimeout(10000);
+            conn.connect();
+            int code = conn.getResponseCode();
+            if (code >= 200 && code < 300) {
+                InputStream is = conn.getInputStream();
+                isr = new InputStreamReader(is);
+                return gson.fromJson(isr, ModelRepositoryInfo.class);
+            } else {
+                throw new Exception("network error, response code=" + code);
+            }
+        } finally {
+            if (conn != null) conn.disconnect();
+            closeStream(isr);
         }
     }
 }
