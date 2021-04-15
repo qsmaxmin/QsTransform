@@ -10,10 +10,10 @@ import java.util.regex.Pattern;
  * @Description
  */
 public class MyExtension {
-    public  boolean         enable        = true;
-    public  boolean         showLog       = true;
-    public  boolean         fullClassPath = true;
-    private HashSet<String> includes      = new HashSet<>();
+    public        boolean         enable        = true;
+    public        boolean         showLog       = true;
+    public        boolean         fullClassPath = true;
+    private final HashSet<String> includes      = new HashSet<>();
 
     public MyExtension() {
         includes.add(".*QsBase.*");

@@ -88,7 +88,7 @@ public class MainTransform extends Transform {
         if (myExtension == null || !myExtension.enable) return;
         TransformHelper.enableLog(myExtension.showLog);
         boolean incremental = transformInvocation.isIncremental();
-        long t0 = System.currentTimeMillis();
+        long startTime = System.currentTimeMillis();
 
         Collection<TransformInput> inputs = transformInvocation.getInputs();
         TransformOutputProvider outputProvider = transformInvocation.getOutputProvider();
@@ -110,7 +110,7 @@ public class MainTransform extends Transform {
                     processDirInputs(dirInputs, outputProvider, incremental);
                 }
             }
-            println("\t> QsTransform ended...... time spent:" + (System.currentTimeMillis() - t0) + " ms");
+            println("\t> QsTransform ended...... time spent:" + (System.currentTimeMillis() - startTime) + " ms");
         } catch (Exception e) {
             e.printStackTrace();
             throw new TransformException(e);
@@ -124,11 +124,14 @@ public class MainTransform extends Transform {
     private void processDirInputs(Collection<DirectoryInput> directoryInputs, TransformOutputProvider outputProvider, boolean incremental) throws Exception {
         HashMap<String, List<CtClass>> totalChangedMap = new HashMap<>();
         int totalChangedSize = 0;
-
         for (DirectoryInput dirInput : directoryInputs) {
             File inputDir = dirInput.getFile();
-            File destDir = outputProvider.getContentLocation(inputDir.getAbsolutePath(), dirInput.getContentTypes(), dirInput.getScopes(), Format.DIRECTORY);
-            appendDirClassPath(inputDir.getAbsolutePath());
+            String inputDirPath = inputDir.getAbsolutePath();
+
+            File destDir = outputProvider.getContentLocation(dirInput.getName(), dirInput.getContentTypes(), dirInput.getScopes(), Format.DIRECTORY);
+            String destDirPath = destDir.getAbsolutePath();
+
+            appendDirClassPath(inputDirPath);
 
             ArrayList<CtClass> changedFileList = null;
             if (incremental) {
@@ -137,7 +140,7 @@ public class MainTransform extends Transform {
                 for (File f : fileSet) {
                     Status status = changedFiles.get(f);
                     if (status != Status.NOTCHANGED) {
-                        String destFilePath = f.getAbsolutePath().replace(inputDir.getAbsolutePath(), destDir.getAbsolutePath());
+                        String destFilePath = f.getAbsolutePath().replace(inputDirPath, destDirPath);
                         File destFile = new File(destFilePath);
                         if (destFile.exists()) FileUtils.delete(destFile);
                         if (status != Status.REMOVED) {
@@ -148,7 +151,7 @@ public class MainTransform extends Transform {
                             FileUtils.copyFile(f, destFile);
                             if (changedFileList == null) {
                                 changedFileList = new ArrayList<>();
-                                totalChangedMap.put(destDir.getAbsolutePath(), changedFileList);
+                                totalChangedMap.put(destDirPath, changedFileList);
                             }
                             CtClass ctClass = createCtClass(destFilePath);
                             if (ctClass != null) {
@@ -171,7 +174,7 @@ public class MainTransform extends Transform {
                         changedFileList.add(ctClass);
                     }
                 }
-                totalChangedMap.put(destDir.getAbsolutePath(), changedFileList);
+                totalChangedMap.put(destDirPath, changedFileList);
             }
         }
 
@@ -308,7 +311,7 @@ public class MainTransform extends Transform {
     private void processJarInputs(Collection<JarInput> jarInputs, TransformOutputProvider outputProvider, boolean incremental) throws Exception {
         for (JarInput jarInput : jarInputs) {
             File inputFile = jarInput.getFile();
-            File destFile = outputProvider.getContentLocation(inputFile.getAbsolutePath(), jarInput.getContentTypes(), jarInput.getScopes(), Format.JAR);
+            File destFile = outputProvider.getContentLocation(jarInput.getName(), jarInput.getContentTypes(), jarInput.getScopes(), Format.JAR);
             if (incremental) {
                 switch (jarInput.getStatus()) {
                     case ADDED:

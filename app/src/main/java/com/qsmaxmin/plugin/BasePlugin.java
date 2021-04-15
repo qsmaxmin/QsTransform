@@ -26,7 +26,9 @@ abstract class BasePlugin implements Plugin<Project> {
         DependencyHandler dependencies = project.getDependencies();
         ModelConfigInfo info = getModelConfigInfo(project);
         if (info != null) {
-            dependencies.add("implementation", info.qsAnnotationDependency);
+            if (!isDebug()) {
+                dependencies.add("implementation", info.qsAnnotationDependency);
+            }
             if (addQsBaseRepositories()) {
                 dependencies.add("implementation", info.qsBaseDependency);
             }
