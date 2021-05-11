@@ -18,6 +18,7 @@ import org.apache.commons.io.FileUtils;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.util.ArrayList;
 import java.util.List;
 
 import javassist.CtClass;
@@ -61,35 +62,82 @@ class MainProcess {
         } else {
             FileUtils.copyFile(inputFile, outputFile);
         }
+        FileUtils.copyFile(inputFile, outputFile);
         return false;
     }
 
     private boolean processJavaClassFile(String rootPath, CtClass clazz) throws Exception {
         if (clazz == null) return false;
         int state = 0;
-        CtMethod[] declaredMethods = clazz.getDeclaredMethods();
         CtField[] declaredFields = clazz.getDeclaredFields();
+        CtMethod[] declaredMethods = clazz.getDeclaredMethods();
 
-        List<DataHolder<CtField, Bind>> bindData = TransformHelper.getAnnotatedFields(declaredFields, Bind.class);
-        List<DataHolder<CtField, BindBundle>> bindBundleData = TransformHelper.getAnnotatedFields(declaredFields, BindBundle.class);
-        List<DataHolder<CtField, Property>> propertyData = TransformHelper.getAnnotatedFields(declaredFields, Property.class);
+        List<DataHolder<CtField, Bind>> bindData = null;
+        List<DataHolder<CtField, BindBundle>> bindBundleData = null;
+        List<DataHolder<CtField, Property>> propertyData = null;
 
-        List<DataHolder<CtMethod, Subscribe>> subscribeData = TransformHelper.getAnnotatedMethods(declaredMethods, Subscribe.class);
-        List<DataHolder<CtMethod, Permission>> permissionData = TransformHelper.getAnnotatedMethods(declaredMethods, Permission.class);
-        List<DataHolder<CtMethod, ThreadPoint>> threadPointData = TransformHelper.getAnnotatedMethods(declaredMethods, ThreadPoint.class);
-        List<DataHolder<CtMethod, QsAspect>> qsAspectData = TransformHelper.getAnnotatedMethods(declaredMethods, QsAspect.class);
-        List<DataHolder<CtMethod, OnClick>> onClickData = TransformHelper.getAnnotatedMethods(declaredMethods, OnClick.class);
+        List<DataHolder<CtMethod, Subscribe>> subscribeData = null;
+        List<DataHolder<CtMethod, Permission>> permissionData = null;
+        List<DataHolder<CtMethod, ThreadPoint>> threadPointData = null;
+        List<DataHolder<CtMethod, QsAspect>> qsAspectData = null;
+        List<DataHolder<CtMethod, OnClick>> onClickData = null;
 
-        if (clazz.getAnnotation(AutoProperty.class) != null && propertyData != null) {
-            if (processProperty == null) processProperty = new ProcessProperty();
-            processProperty.transform(clazz, propertyData);
-            state |= STATE_PROPERTY;
+        for (CtField f : declaredFields) {
+            Object[] annotations = f.getAnnotations();
+            if (annotations != null && annotations.length > 0) {
+                for (Object ann : annotations) {
+                    if (ann instanceof Bind) {
+                        if (bindData == null) bindData = new ArrayList<>();
+                        bindData.add(new DataHolder<>(f, (Bind) ann));
+                    } else if (ann instanceof BindBundle) {
+                        if (bindBundleData == null) bindBundleData = new ArrayList<>();
+                        bindBundleData.add(new DataHolder<>(f, (BindBundle) ann));
+                    } else if (ann instanceof Property) {
+                        if (propertyData == null) propertyData = new ArrayList<>();
+                        propertyData.add(new DataHolder<>(f, (Property) ann));
+                    }
+                }
+            }
+        }
+        for (CtMethod m : declaredMethods) {
+            Object[] annotations = m.getAnnotations();
+            if (annotations != null && annotations.length > 0) {
+                for (Object ann : annotations) {
+                    if (ann instanceof Subscribe) {
+                        if (subscribeData == null) subscribeData = new ArrayList<>();
+                        subscribeData.add(new DataHolder<>(m, (Subscribe) ann));
+                    } else if (ann instanceof Permission) {
+                        if (permissionData == null) permissionData = new ArrayList<>();
+                        permissionData.add(new DataHolder<>(m, (Permission) ann));
+                    } else if (ann instanceof ThreadPoint) {
+                        if (threadPointData == null) threadPointData = new ArrayList<>();
+                        threadPointData.add(new DataHolder<>(m, (ThreadPoint) ann));
+                    } else if (ann instanceof QsAspect) {
+                        if (qsAspectData == null) qsAspectData = new ArrayList<>();
+                        qsAspectData.add(new DataHolder<>(m, (QsAspect) ann));
+                    } else if (ann instanceof OnClick) {
+                        if (onClickData == null) onClickData = new ArrayList<>();
+                        onClickData.add(new DataHolder<>(m, (OnClick) ann));
+                    }
+                }
+            }
         }
 
-        if (clazz.getAnnotation(Presenter.class) != null) {
-            if (processPresenter == null) processPresenter = new ProcessPresenter();
-            processPresenter.transform(clazz);
-            state |= STATE_PRESENTER;
+        Object[] classAnnotations = clazz.getAnnotations();
+        if (classAnnotations != null && classAnnotations.length > 0) {
+            for (Object ann : classAnnotations) {
+                if (ann instanceof AutoProperty) {
+                    if (propertyData != null) {
+                        if (processProperty == null) processProperty = new ProcessProperty();
+                        processProperty.transform(clazz, propertyData);
+                        state |= STATE_PROPERTY;
+                    }
+                } else if (ann instanceof Presenter) {
+                    if (processPresenter == null) processPresenter = new ProcessPresenter();
+                    processPresenter.transform(clazz);
+                    state |= STATE_PRESENTER;
+                }
+            }
         }
 
         if (subscribeData != null) {
