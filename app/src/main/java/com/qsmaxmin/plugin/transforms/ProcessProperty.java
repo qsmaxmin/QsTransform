@@ -3,6 +3,9 @@ package com.qsmaxmin.plugin.transforms;
 import com.android.build.api.transform.TransformException;
 import com.qsmaxmin.annotation.properties.Property;
 import com.qsmaxmin.plugin.helper.TransformHelper;
+import com.qsmaxmin.plugin.model.DataHolder;
+
+import java.util.List;
 
 import javassist.CtClass;
 import javassist.CtField;
@@ -13,13 +16,13 @@ import javassist.CtMethod;
  * @Date 2020/8/13 14:50
  * @Description
  */
-public class PropertyTransform {
+class ProcessProperty {
     private static final String INTERFACE_PROPERTY      = "com.qsmaxmin.qsbase.plugin.property.QsIProperty";
     private static final String METHOD_READ_PROPERTIES  = "readPropertiesByQsPlugin";
     private static final String METHOD_SAVE_PROPERTIES  = "savePropertiesByQsPlugin";
     private static final String METHOD_CLEAR_PROPERTIES = "clearPropertiesByQsPlugin";
 
-    public static void transform(CtClass clazz, CtField[] declaredFields) throws Exception {
+    void transform(CtClass clazz, List<DataHolder<CtField, Property>> dataList) throws Exception {
         if (clazz.isFrozen()) clazz.defrost();
 
         CtMethod baseReadMethod = null;
@@ -52,15 +55,9 @@ public class PropertyTransform {
             clearSB.append("super." + METHOD_CLEAR_PROPERTIES + "();");
         }
 
-        for (CtField field : declaredFields) {
-            Object ann;
-            try {
-                ann = field.getAnnotation(Property.class);
-            } catch (Exception ignored) {
-                continue;
-            }
-            if (ann == null) continue;
-            Property property = (Property) ann;
+        for (DataHolder<CtField, Property> data : dataList) {
+            CtField field = data.key;
+            Property property = data.value;
             String fieldName = field.getName();
             String key = property.value().length() == 0 ? fieldName : property.value();
             String typeName = field.getType().getName();
@@ -87,7 +84,7 @@ public class PropertyTransform {
         clazz.addMethod(clearMethod);
     }
 
-    private static String getEmptyValueByType(String typeName) {
+    private String getEmptyValueByType(String typeName) {
         switch (typeName) {
             case "int":
             case "long":
@@ -104,7 +101,7 @@ public class PropertyTransform {
         }
     }
 
-    private static String getMethodNameByType(String typeName) {
+    private String getMethodNameByType(String typeName) {
         switch (typeName) {
             case "java.lang.String":
                 return "String";

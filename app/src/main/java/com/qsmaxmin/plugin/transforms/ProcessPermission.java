@@ -2,6 +2,9 @@ package com.qsmaxmin.plugin.transforms;
 
 import com.qsmaxmin.annotation.permission.Permission;
 import com.qsmaxmin.plugin.helper.TransformHelper;
+import com.qsmaxmin.plugin.model.DataHolder;
+
+import java.util.List;
 
 import javassist.CtClass;
 import javassist.CtConstructor;
@@ -14,58 +17,49 @@ import javassist.Modifier;
  * @Date 2020/8/13 16:36
  * @Description
  */
-public class PermissionTransform {
+class ProcessPermission {
     private static final String   CLASS_PERMISSION_HELPER   = "com.qsmaxmin.qsbase.plugin.permission.PermissionHelper";
     private static final String   CLASS_PERMISSION_CALLBACK = "com.qsmaxmin.qsbase.plugin.permission.PermissionCallbackListener";
     private static final String   METHOD_CHECK_PERMISSION   = "isPermissionGranted";
     private static final String   METHOD_CALLBACK           = "onPermissionCallback";
     private static final String   METHOD_REQUEST_PERMISSION = "startRequestPermission";
-    private static       CtClass  callbackInterface;
-    private static       CtMethod callbackMethod;
+    private final        CtClass  callbackInterface;
+    private final        CtMethod callbackMethod;
 
-    public static boolean transform(CtClass clazz, CtMethod[] declaredMethods, String rootPath) throws Exception {
-        if (declaredMethods == null || declaredMethods.length == 0) return false;
-        if (callbackInterface == null) {
-            synchronized (PermissionTransform.class) {
-                if (callbackInterface == null) {
-                    callbackInterface = TransformHelper.getInstance().get(CLASS_PERMISSION_CALLBACK);
-                    callbackMethod = callbackInterface.getDeclaredMethod(METHOD_CALLBACK);
-                }
-            }
-        }
+    ProcessPermission() throws Exception {
+        callbackInterface = TransformHelper.getInstance().get(CLASS_PERMISSION_CALLBACK);
+        callbackMethod = callbackInterface.getDeclaredMethod(METHOD_CALLBACK);
+    }
 
+    void transform(CtClass clazz, List<DataHolder<CtMethod, Permission>> permissionData, String rootPath) throws Exception {
         int methodIndex = 0;
-        for (CtMethod originalMethod : declaredMethods) {
-            Object annotation = originalMethod.getAnnotation(Permission.class);
-            if (annotation != null) {
-                boolean isStaticMethod = Modifier.isStatic(originalMethod.getModifiers());
-
-                Permission permission = (Permission) annotation;
-                String[] permissionArr = permission.value();
-                if (permissionArr.length == 0) {
-                    continue;
-                }
-                boolean forceGoOn = permission.forceGoOn();
-
-                addNewMethod(clazz, originalMethod, methodIndex, isStaticMethod);
-
-                CtClass implClass = createCallbackImplClass(clazz, originalMethod, forceGoOn, methodIndex, isStaticMethod);
-
-                String code = generateOriginalMethodCode(permissionArr, originalMethod, implClass.getName(), methodIndex, isStaticMethod);
-                originalMethod.setBody(code);
-
-                implClass.writeFile(rootPath);
-                methodIndex++;
+        for (DataHolder<CtMethod, Permission> data : permissionData) {
+            CtMethod originalMethod = data.key;
+            Permission permission = data.value;
+            boolean isStaticMethod = Modifier.isStatic(originalMethod.getModifiers());
+            String[] permissionArr = permission.value();
+            if (permissionArr.length == 0) {
+                continue;
             }
+            boolean forceGoOn = permission.forceGoOn();
+
+            addNewMethod(clazz, originalMethod, methodIndex, isStaticMethod);
+
+            CtClass implClass = createCallbackImplClass(clazz, originalMethod, forceGoOn, methodIndex, isStaticMethod);
+
+            String code = generateOriginalMethodCode(permissionArr, originalMethod, implClass.getName(), methodIndex, isStaticMethod);
+            originalMethod.setBody(code);
+
+            implClass.writeFile(rootPath);
+            methodIndex++;
         }
-        return methodIndex > 0;
     }
 
 
     /**
      * copy original method body to new method
      */
-    private static void addNewMethod(CtClass clazz, CtMethod originalMethod, int methodIndex, boolean isStaticMethod) throws Exception {
+    private void addNewMethod(CtClass clazz, CtMethod originalMethod, int methodIndex, boolean isStaticMethod) throws Exception {
         String newMethodName = getNewMethodName(originalMethod, methodIndex);
         CtMethod newMethod = new CtMethod(originalMethod, clazz, null);
         newMethod.setName(newMethodName);
@@ -77,7 +71,7 @@ public class PermissionTransform {
         TransformHelper.addMethod(clazz, newMethod);
     }
 
-    private static CtClass createCallbackImplClass(CtClass clazz, CtMethod originalMethod, boolean forceGoOn, int methodIndex, boolean isStaticMethod) throws Exception {
+    private CtClass createCallbackImplClass(CtClass clazz, CtMethod originalMethod, boolean forceGoOn, int methodIndex, boolean isStaticMethod) throws Exception {
         String implClassName = clazz.getName() + "_QsPermission" + methodIndex;
         CtClass implClass = TransformHelper.getInstance().makeClassIfNotExists(implClassName);
         if (implClass.isFrozen()) implClass.defrost();
@@ -144,7 +138,7 @@ public class PermissionTransform {
         return implClass;
     }
 
-    private static String createImplMethodBodyStatic(String className, String newMethodName, boolean forceGoOn, CtClass[] parameterTypes) {
+    private String createImplMethodBodyStatic(String className, String newMethodName, boolean forceGoOn, CtClass[] parameterTypes) {
         String executeCode;
         if (parameterTypes != null && parameterTypes.length > 0) {
             StringBuilder sb = new StringBuilder();
@@ -163,7 +157,7 @@ public class PermissionTransform {
         }
     }
 
-    private static String createImplMethodBody(String newMethodName, boolean forceGoOn, CtClass[] parameterTypes) {
+    private String createImplMethodBody(String newMethodName, boolean forceGoOn, CtClass[] parameterTypes) {
         String executeCode;
         if (parameterTypes != null && parameterTypes.length > 0) {
             StringBuilder sb = new StringBuilder();
@@ -183,7 +177,7 @@ public class PermissionTransform {
         }
     }
 
-    private static String generateOriginalMethodCode(String[] permissionArr, CtMethod originalMethod, String callbackImpl, int methodIndex, boolean isStaticMethod) throws Exception {
+    private String generateOriginalMethodCode(String[] permissionArr, CtMethod originalMethod, String callbackImpl, int methodIndex, boolean isStaticMethod) throws Exception {
         StringBuilder temp = new StringBuilder();
         for (int i = 0; i < permissionArr.length; i++) {
             temp.append('\"').append(permissionArr[i]).append('\"');
@@ -225,7 +219,7 @@ public class PermissionTransform {
                 (hasReturnValue ? TransformHelper.getDefaultReturnText(originalMethod) : "") + "}}";
     }
 
-    private static String getNewMethodName(CtMethod originalMethod, int methodIndex) {
+    private String getNewMethodName(CtMethod originalMethod, int methodIndex) {
         return originalMethod.getName() + "_QsPermission_" + methodIndex;
     }
 }

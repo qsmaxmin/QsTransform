@@ -13,44 +13,28 @@ import com.android.build.api.transform.TransformOutputProvider;
 import com.android.build.gradle.AppExtension;
 import com.android.build.gradle.internal.pipeline.TransformManager;
 import com.android.utils.FileUtils;
-import com.qsmaxmin.annotation.properties.AutoProperty;
 import com.qsmaxmin.plugin.extension.MyExtension;
 import com.qsmaxmin.plugin.helper.TransformHelper;
 
 import org.gradle.api.Project;
 import org.gradle.api.file.FileCollection;
-import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import javassist.CtClass;
-import javassist.CtField;
-import javassist.CtMethod;
 import javassist.NotFoundException;
 
 public class MainTransform extends Transform {
-    private static final int         STATE_PROPERTY     = 0b1;
-    private static final int         STATE_PRESENTER    = 0b1 << 1;
-    private static final int         STATE_EVENT        = 0b1 << 2;
-    public static final  int         STATE_BIND_VIEW    = 0b1 << 3;
-    public static final  int         STATE_ONCLICK      = 0b1 << 4;
-    public static final  int         STATE_BIND_BUNDLE  = 0b1 << 5;
-    private static final int         STATE_PERMISSION   = 0b1 << 6;
-    private static final int         STATE_THREAD_POINT = 0b1 << 7;
-    private static final int         STATE_ASPECT       = 0b1 << 8;
-    private final        Project     project;
-    private              MyExtension myExtension;
+    private final Project     project;
+    private final MainProcess mainProcess;
+    private       MyExtension myExtension;
 
     public MainTransform(Project project) {
         this.project = project;
+        this.mainProcess = new MainProcess();
     }
 
     @Override
@@ -117,196 +101,64 @@ public class MainTransform extends Transform {
         }
     }
 
-
     /**
      * 目录文件夹是我们的源代码和生成的R文件和BuildConfig文件等
      */
     private void processDirInputs(Collection<DirectoryInput> directoryInputs, TransformOutputProvider outputProvider, boolean incremental) throws Exception {
-        HashMap<String, List<CtClass>> totalChangedMap = new HashMap<>();
-        int totalChangedSize = 0;
+        int totalChangedCount = 0;
+        int transformedCount = 0;
+
         for (DirectoryInput dirInput : directoryInputs) {
             File inputDir = dirInput.getFile();
             String inputDirPath = inputDir.getAbsolutePath();
-
-            File destDir = outputProvider.getContentLocation(dirInput.getName(), dirInput.getContentTypes(), dirInput.getScopes(), Format.DIRECTORY);
-            String destDirPath = destDir.getAbsolutePath();
-
+            File outputDir = outputProvider.getContentLocation(dirInput.getName(), dirInput.getContentTypes(), dirInput.getScopes(), Format.DIRECTORY);
+            String outputDirPath = outputDir.getAbsolutePath();
             appendDirClassPath(inputDirPath);
 
-            ArrayList<CtClass> changedFileList = null;
             if (incremental) {
                 Map<File, Status> changedFiles = dirInput.getChangedFiles();
                 Set<File> fileSet = changedFiles.keySet();
-                for (File f : fileSet) {
-                    Status status = changedFiles.get(f);
-                    if (status != Status.NOTCHANGED) {
-                        String destFilePath = f.getAbsolutePath().replace(inputDirPath, destDirPath);
-                        File destFile = new File(destFilePath);
-                        if (destFile.exists()) FileUtils.delete(destFile);
-                        if (status != Status.REMOVED) {
-                            if (!f.exists()) {
-                                println(f.getAbsolutePath() + " not exists, Why???");
-                                continue;
+                totalChangedCount += fileSet.size();
+
+                for (File inputFile : fileSet) {
+                    switch (changedFiles.get(inputFile)) {
+                        case CHANGED:
+                        case ADDED: {
+                            File outputFile = toOutputFile(outputDir, inputDir, inputFile);
+                            if (mainProcess.processClassFile(outputDirPath, outputFile, inputFile)) {
+                                transformedCount++;
                             }
-                            FileUtils.copyFile(f, destFile);
-                            if (changedFileList == null) {
-                                changedFileList = new ArrayList<>();
-                                totalChangedMap.put(destDirPath, changedFileList);
-                            }
-                            CtClass ctClass = createCtClass(destFilePath);
-                            if (ctClass != null) {
-                                totalChangedSize++;
-                                changedFileList.add(ctClass);
-                            }
+                            break;
                         }
+                        case REMOVED: {
+                            File outputFile = toOutputFile(outputDir, inputDir, inputFile);
+                            if (outputFile.exists()) FileUtils.delete(outputFile);
+                            break;
+                        }
+                        case NOTCHANGED:
+                            break;
                     }
                 }
             } else {
-                FileUtils.copyDirectory(inputDir, destDir);
-                ArrayList<String> tempList = new ArrayList<>();
-                filterOutJavaClass(destDir, tempList);
-                totalChangedSize += tempList.size();
-
-                changedFileList = new ArrayList<>();
-                for (String path : tempList) {
-                    CtClass ctClass = createCtClass(path);
-                    if (ctClass != null) {
-                        changedFileList.add(ctClass);
+                for (File inputFile : FileUtils.getAllFiles(inputDir)) {
+                    File outputFile = toOutputFile(outputDir, inputDir, inputFile);
+                    totalChangedCount++;
+                    if (mainProcess.processClassFile(outputDirPath, outputFile, inputFile)) {
+                        transformedCount++;
                     }
                 }
-                totalChangedMap.put(destDirPath, changedFileList);
             }
         }
-
-        if (totalChangedSize == 0) {
+        if (transformedCount == 0) {
             println("\t\t> transform class complete, no changed...");
-            return;
-        }
-
-        int transformedCount = 0;
-        for (String rootPath : totalChangedMap.keySet()) {
-            List<CtClass> classList = totalChangedMap.get(rootPath);
-            for (CtClass ctClass : classList) {
-                boolean transformed = processJavaClassFile(rootPath, ctClass);
-                if (transformed) transformedCount++;
-            }
-        }
-        println("\t> transform count: " + transformedCount + ", total count: " + totalChangedSize);
-    }
-
-    private void filterOutJavaClass(File file, List<String> filePathList) {
-        if (file.isFile() && file.getName().endsWith(".class")) {
-            filePathList.add(file.getAbsolutePath());
-        } else if (file.isDirectory()) {
-            File[] files = file.listFiles();
-            if (files != null) {
-                for (File f : files) {
-                    filterOutJavaClass(f, filePathList);
-                }
-            }
+        } else {
+            println("\t> transform count: " + transformedCount + ", total count: " + totalChangedCount);
         }
     }
 
-    @Nullable private CtClass createCtClass(String filePath) {
-        FileInputStream fis = null;
-        try {
-            fis = new FileInputStream(filePath);
-            return TransformHelper.getInstance().makeClass(fis, false);
-        } catch (Exception e) {
-            println("can not create CtClass from filePath:" + filePath);
-        } finally {
-            TransformHelper.closeStream(fis);
-        }
-        return null;
+    private File toOutputFile(File outputDir, File inputDir, File inputFile) {
+        return new File(outputDir, FileUtils.relativePossiblyNonExistingPath(inputFile, inputDir));
     }
-
-    private boolean processJavaClassFile(String rootPath, CtClass clazz) throws Exception {
-        int state = 0;
-        if (clazz == null) {
-            return false;
-        }
-
-        CtMethod[] declaredMethods = clazz.getDeclaredMethods();
-        CtField[] declaredFields = clazz.getDeclaredFields();
-        if (clazz.getAnnotation(AutoProperty.class) != null) {
-            PropertyTransform.transform(clazz, declaredFields);
-            state |= STATE_PROPERTY;
-        }
-        if (PresenterTransform.transform(clazz)) {
-            state |= STATE_PRESENTER;
-        }
-        if (EventTransform.transform(clazz, declaredMethods, rootPath)) {
-            state |= STATE_EVENT;
-        }
-
-        state |= ViewBindTransform.transform(clazz, declaredMethods, declaredFields, rootPath);
-
-        if (PermissionTransform.transform(clazz, declaredMethods, rootPath)) {
-            state |= STATE_PERMISSION;
-        }
-        if (ThreadPointTransform.transform(clazz, declaredMethods, rootPath)) {
-            state |= STATE_THREAD_POINT;
-        }
-        if (AspectTransform.transform(clazz, declaredMethods, rootPath)) {
-            state |= STATE_ASPECT;
-        }
-        if (state != 0) {
-            clazz.writeFile(rootPath);
-        }
-        showTransformInfoLog(clazz, state);
-        return state != 0;
-    }
-
-    private void showTransformInfoLog(CtClass clazz, int state) {
-        if (state == 0 || !TransformHelper.isEnableLog()) return;
-        boolean tag = false;
-        StringBuilder sb = new StringBuilder("\t\t> transform class :");
-        sb.append(clazz.getName()).append(" ----- [");
-        if ((state & STATE_PROPERTY) == STATE_PROPERTY) {
-            sb.append("@AutoProperty");
-            tag = true;
-        }
-        if ((state & STATE_PRESENTER) == STATE_PRESENTER) {
-            if (tag) sb.append(", ");
-            sb.append("@Presenter");
-            tag = true;
-        }
-        if ((state & STATE_EVENT) == STATE_EVENT) {
-            if (tag) sb.append(", ");
-            sb.append("@Subscribe");
-            tag = true;
-        }
-        if ((state & STATE_PERMISSION) == STATE_PERMISSION) {
-            if (tag) sb.append(", ");
-            sb.append("@Permission");
-            tag = true;
-        }
-        if ((state & STATE_THREAD_POINT) == STATE_THREAD_POINT) {
-            if (tag) sb.append(", ");
-            sb.append("@ThreadPoint");
-            tag = true;
-        }
-        if ((state & STATE_BIND_VIEW) == STATE_BIND_VIEW) {
-            if (tag) sb.append(", ");
-            sb.append("@Bind");
-            tag = true;
-        }
-        if ((state & STATE_ONCLICK) == STATE_ONCLICK) {
-            if (tag) sb.append(", ");
-            sb.append("@OnClick");
-            tag = true;
-        }
-        if ((state & STATE_BIND_BUNDLE) == STATE_BIND_BUNDLE) {
-            if (tag) sb.append(", ");
-            sb.append("@BindBundle");
-        }
-        if ((state & STATE_ASPECT) == STATE_ASPECT) {
-            if (tag) sb.append(", ");
-            sb.append("@QsAspect");
-        }
-        println(sb.append("]").toString());
-    }
-
 
     private void processJarInputs(Collection<JarInput> jarInputs, TransformOutputProvider outputProvider, boolean incremental) throws Exception {
         for (JarInput jarInput : jarInputs) {
@@ -362,6 +214,4 @@ public class MainTransform extends Transform {
     private void println(String text) {
         TransformHelper.println(text);
     }
-
-
 }

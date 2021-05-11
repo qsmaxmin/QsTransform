@@ -3,6 +3,9 @@ package com.qsmaxmin.plugin.transforms;
 import com.qsmaxmin.annotation.thread.ThreadPoint;
 import com.qsmaxmin.annotation.thread.ThreadType;
 import com.qsmaxmin.plugin.helper.TransformHelper;
+import com.qsmaxmin.plugin.model.DataHolder;
+
+import java.util.List;
 
 import javassist.CtClass;
 import javassist.CtConstructor;
@@ -15,49 +18,41 @@ import javassist.Modifier;
  * @Date 2020/8/13 16:36
  * @Description
  */
-public class ThreadPointTransform {
+class ProcessThreadPoint {
     private static final String   CLASS_THREAD_HELPER    = "com.qsmaxmin.qsbase.plugin.threadpoll.QsThreadPollHelper";
     private static final String   CLASS_RUNNABLE         = "com.qsmaxmin.qsbase.plugin.threadpoll.SafeRunnable";
     private static final String   methodNameMainThread   = "post";
     private static final String   methodNameWorkThread   = "runOnWorkThread";
     private static final String   methodNameHttpThread   = "runOnHttpThread";
     private static final String   methodNameSingleThread = "runOnSingleThread";
-    private static       CtClass  runnableClass;
-    private static       CtMethod runMethod;
+    private final        CtClass  runnableClass;
+    private final        CtMethod runMethod;
 
-    public static boolean transform(CtClass clazz, CtMethod[] declaredMethods, String rootPath) throws Exception {
-        if (declaredMethods == null || declaredMethods.length == 0) return false;
-        if (runnableClass == null) {
-            synchronized (ThreadPointTransform.class) {
-                if (runnableClass == null) {
-                    runnableClass = TransformHelper.getInstance().get(CLASS_RUNNABLE);
-                    runMethod = runnableClass.getDeclaredMethod("safeRun");
-                }
-            }
-        }
+    ProcessThreadPoint() throws Exception {
+        runnableClass = TransformHelper.getInstance().get(CLASS_RUNNABLE);
+        runMethod = runnableClass.getDeclaredMethod("safeRun");
+    }
 
+    void transform(CtClass clazz, List<DataHolder<CtMethod, ThreadPoint>> threadPointData, String rootPath) throws Exception {
         int methodIndex = 0;
-        for (CtMethod originalMethod : declaredMethods) {
-            Object ann = originalMethod.getAnnotation(ThreadPoint.class);
-            if (ann != null) {
-                ThreadPoint threadPoint = (ThreadPoint) ann;
-                ThreadType type = threadPoint.value();
-                boolean isStaticMethod = Modifier.isStatic(originalMethod.getModifiers());
+        for (DataHolder<CtMethod, ThreadPoint> data : threadPointData) {
+            CtMethod originalMethod = data.key;
+            ThreadPoint threadPoint = data.value;
+            ThreadType type = threadPoint.value();
+            boolean isStaticMethod = Modifier.isStatic(originalMethod.getModifiers());
 
-                addNewMethod(clazz, originalMethod, methodIndex, isStaticMethod);
-                CtClass implClass = createRunnableClass(clazz, originalMethod, methodIndex, isStaticMethod);
-                String code = generateOriginalMethodCode(originalMethod, implClass.getName(), type, isStaticMethod);
-                originalMethod.setBody(code);
+            addNewMethod(clazz, originalMethod, methodIndex, isStaticMethod);
+            CtClass implClass = createRunnableClass(clazz, originalMethod, methodIndex, isStaticMethod);
+            String code = generateOriginalMethodCode(originalMethod, implClass.getName(), type, isStaticMethod);
+            originalMethod.setBody(code);
 
-                implClass.writeFile(rootPath);
-                methodIndex++;
-            }
+            implClass.writeFile(rootPath);
+            methodIndex++;
         }
-        return methodIndex > 0;
     }
 
 
-    private static CtClass createRunnableClass(CtClass clazz, CtMethod originalMethod, int methodIndex, boolean isStaticMethod) throws Exception {
+    private CtClass createRunnableClass(CtClass clazz, CtMethod originalMethod, int methodIndex, boolean isStaticMethod) throws Exception {
         String implClassName = clazz.getName() + "_QsThread" + methodIndex;
         CtClass implClass = TransformHelper.getInstance().makeClassIfNotExists(implClassName);
         if (implClass.isFrozen()) implClass.defrost();
@@ -124,7 +119,7 @@ public class ThreadPointTransform {
         return implClass;
     }
 
-    private static String createImplMethodBodyStatic(String className, String newMethodName, CtClass[] parameterTypes) {
+    private String createImplMethodBodyStatic(String className, String newMethodName, CtClass[] parameterTypes) {
         if (parameterTypes != null && parameterTypes.length > 0) {
             StringBuilder sb = new StringBuilder();
             for (int i = 0; i < parameterTypes.length; i++) {
@@ -137,7 +132,7 @@ public class ThreadPointTransform {
         }
     }
 
-    private static String createImplMethodBody(String newMethodName, CtClass[] parameterTypes) {
+    private String createImplMethodBody(String newMethodName, CtClass[] parameterTypes) {
         if (parameterTypes != null && parameterTypes.length > 0) {
             StringBuilder sb = new StringBuilder();
             for (int i = 0; i < parameterTypes.length; i++) {
@@ -154,7 +149,7 @@ public class ThreadPointTransform {
     /**
      * copy original method body to new method
      */
-    private static void addNewMethod(CtClass clazz, CtMethod originalMethod, int methodIndex, boolean isStatic) throws Exception {
+    private void addNewMethod(CtClass clazz, CtMethod originalMethod, int methodIndex, boolean isStatic) throws Exception {
         String newMethodName = getNewMethodName(originalMethod, methodIndex);
         CtMethod newMethod = new CtMethod(originalMethod, clazz, null);
         newMethod.setName(newMethodName);
@@ -166,7 +161,7 @@ public class ThreadPointTransform {
         TransformHelper.addMethod(clazz, newMethod);
     }
 
-    private static String generateOriginalMethodCode(CtMethod originalMethod, String runnableImpl, ThreadType type, boolean isStaticMethod) throws Exception {
+    private String generateOriginalMethodCode(CtMethod originalMethod, String runnableImpl, ThreadType type, boolean isStaticMethod) throws Exception {
         String args = "";
         CtClass[] parameterTypes = originalMethod.getParameterTypes();
         if (parameterTypes != null && parameterTypes.length > 0) {
@@ -212,7 +207,7 @@ public class ThreadPointTransform {
         return sb.append('}').toString();
     }
 
-    private static String getNewMethodName(CtMethod originalMethod, int methodIndex) {
+    private String getNewMethodName(CtMethod originalMethod, int methodIndex) {
         return originalMethod.getName() + "_QsThread_" + methodIndex;
     }
 }

@@ -4,6 +4,7 @@ import com.qsmaxmin.annotation.aspect.JoinPoint;
 import com.qsmaxmin.annotation.aspect.QsAspect;
 import com.qsmaxmin.annotation.aspect.QsIAspect;
 import com.qsmaxmin.plugin.helper.TransformHelper;
+import com.qsmaxmin.plugin.model.DataHolder;
 
 import java.util.List;
 
@@ -21,49 +22,46 @@ import javassist.bytecode.annotation.Annotation;
  * @Date 2020/10/23 15:08
  * @Description
  */
-public class AspectTransform {
-    private static CtClass  jointPointClass;
-    private static CtMethod proceedMethod;
-    private static CtMethod getTargetMethod;
-    private static CtMethod getArgsMethod;
-    private static CtMethod getTagMethod;
-    private static CtClass  stringClass;
+class ProcessAspect {
+    private final CtClass  jointPointClass;
+    private final CtMethod proceedMethod;
+    private final CtMethod getTargetMethod;
+    private final CtMethod getArgsMethod;
+    private final CtMethod getTagMethod;
+    private final CtClass  stringClass;
 
-    public static boolean transform(CtClass clazz, CtMethod[] declaredMethods, String rootPath) throws Exception {
-        if (clazz.isFrozen()) clazz.defrost();
-
-        if (jointPointClass == null) {
-            jointPointClass = TransformHelper.getInstance().get(JoinPoint.class.getName());
-            proceedMethod = jointPointClass.getDeclaredMethod("proceed");
-            getTargetMethod = jointPointClass.getDeclaredMethod("getTarget");
-            getArgsMethod = jointPointClass.getDeclaredMethod("getArgs");
-            getTagMethod = jointPointClass.getDeclaredMethod("getTag");
-            stringClass = TransformHelper.getInstance().get(String.class.getName());
-        }
-        int methodIndex = 0;
-        for (CtMethod originalMethod : declaredMethods) {
-            Object ann = originalMethod.getAnnotation(QsAspect.class);
-            if (ann != null) {
-                String aspectClassName = getAspectClassName(originalMethod);
-                if (aspectClassName == null) continue;
-                QsAspect aspect = (QsAspect) ann;
-
-                MethodInfo methodInfo = getReturnInfo(originalMethod);
-
-                addNewMethod(clazz, originalMethod, methodIndex, methodInfo);
-                CtClass jointPointClass = createJointPointClass(clazz, originalMethod, methodIndex, methodInfo);
-
-                String code = generateOriginalMethodCode(aspect.tag(), aspectClassName, jointPointClass.getName(), methodInfo);
-                originalMethod.setBody(code);
-
-                jointPointClass.writeFile(rootPath);
-                methodIndex++;
-            }
-        }
-        return methodIndex > 0;
+    ProcessAspect() throws Exception {
+        jointPointClass = TransformHelper.getInstance().get(JoinPoint.class.getName());
+        proceedMethod = jointPointClass.getDeclaredMethod("proceed");
+        getTargetMethod = jointPointClass.getDeclaredMethod("getTarget");
+        getArgsMethod = jointPointClass.getDeclaredMethod("getArgs");
+        getTagMethod = jointPointClass.getDeclaredMethod("getTag");
+        stringClass = TransformHelper.getInstance().get(String.class.getName());
     }
 
-    private static CtClass[] getNewConstructParams(CtClass clazz, CtClass[] parameterTypes, MethodInfo methodInfo) {
+    void transform(CtClass clazz, List<DataHolder<CtMethod, QsAspect>> qsAspectData, String rootPath) throws Exception {
+        if (clazz.isFrozen()) clazz.defrost();
+        int methodIndex = 0;
+        for (DataHolder<CtMethod, QsAspect> data : qsAspectData) {
+            QsAspect aspect = data.value;
+            CtMethod originalMethod = data.key;
+            String aspectClassName = getAspectClassName(originalMethod);
+            if (aspectClassName == null) continue;
+
+            MethodInfo methodInfo = getReturnInfo(originalMethod);
+
+            addNewMethod(clazz, originalMethod, methodIndex, methodInfo);
+            CtClass jointPointClass = createJointPointClass(clazz, originalMethod, methodIndex, methodInfo);
+
+            String code = generateOriginalMethodCode(aspect.tag(), aspectClassName, jointPointClass.getName(), methodInfo);
+            originalMethod.setBody(code);
+
+            jointPointClass.writeFile(rootPath);
+            methodIndex++;
+        }
+    }
+
+    private CtClass[] getNewConstructParams(CtClass clazz, CtClass[] parameterTypes, MethodInfo methodInfo) {
         int appendLen = methodInfo.isStaticMethod ? 1 : 2;
         CtClass[] ctClasses;
         if (parameterTypes == null || parameterTypes.length == 0) {
@@ -81,7 +79,7 @@ public class AspectTransform {
         return ctClasses;
     }
 
-    private static CtClass createJointPointClass(CtClass clazz, CtMethod originalMethod, int methodIndex, MethodInfo methodInfo) throws Exception {
+    private CtClass createJointPointClass(CtClass clazz, CtMethod originalMethod, int methodIndex, MethodInfo methodInfo) throws Exception {
         String implClassName = clazz.getName() + "_QsAspect" + methodIndex;
         CtClass implClass = TransformHelper.getInstance().makeClassIfNotExists(implClassName);
         if (implClass.isFrozen()) implClass.defrost();
@@ -169,7 +167,7 @@ public class AspectTransform {
         return implClass;
     }
 
-    private static String createImplMethodBody(CtClass clazz, String newMethodName, CtClass[] parameterTypes, MethodInfo methodInfo) {
+    private String createImplMethodBody(CtClass clazz, String newMethodName, CtClass[] parameterTypes, MethodInfo methodInfo) {
         String className = clazz.getName();
         int fromIndex = methodInfo.isStaticMethod ? 1 : 2;
         StringBuilder sb = null;
@@ -191,7 +189,7 @@ public class AspectTransform {
         }
     }
 
-    private static String generateOriginalMethodCode(String tag, String aspectClassName, String joinPointClassName, MethodInfo methodInfo) {
+    private String generateOriginalMethodCode(String tag, String aspectClassName, String joinPointClassName, MethodInfo methodInfo) {
         CtClass[] parameterTypes = methodInfo.parameterTypes;
         StringBuilder argSb = new StringBuilder();
         argSb.append("\"").append(tag).append("\"");
@@ -221,7 +219,7 @@ public class AspectTransform {
         return bodySb.append('}').toString();
     }
 
-    private static MethodInfo getReturnInfo(CtMethod originalMethod) throws Exception {
+    private MethodInfo getReturnInfo(CtMethod originalMethod) throws Exception {
         MethodInfo value = new MethodInfo();
         CtClass returnType = originalMethod.getReturnType();
         value.isStaticMethod = Modifier.isStatic(originalMethod.getModifiers());
@@ -297,7 +295,7 @@ public class AspectTransform {
     /**
      * copy original method body to new method
      */
-    private static void addNewMethod(CtClass clazz, CtMethod originalMethod, int methodIndex, MethodInfo methodInfo) throws Exception {
+    private void addNewMethod(CtClass clazz, CtMethod originalMethod, int methodIndex, MethodInfo methodInfo) throws Exception {
         String newMethodName = getNewMethodName(originalMethod, methodIndex);
         CtMethod newMethod = new CtMethod(originalMethod, clazz, null);
         newMethod.setName(newMethodName);
@@ -309,11 +307,11 @@ public class AspectTransform {
         TransformHelper.addMethod(clazz, newMethod);
     }
 
-    private static String getNewMethodName(CtMethod originalMethod, int methodIndex) {
+    private String getNewMethodName(CtMethod originalMethod, int methodIndex) {
         return originalMethod.getName() + "_QsAspect_" + methodIndex;
     }
 
-    private static String getAspectClassName(CtMethod method) {
+    private String getAspectClassName(CtMethod method) {
         javassist.bytecode.MethodInfo methodInfo = method.getMethodInfo();
         List<AttributeInfo> attributes = methodInfo.getAttributes();
         for (AttributeInfo info : attributes) {

@@ -17,29 +17,24 @@ import javassist.bytecode.annotation.Annotation;
  * @Date 2020/8/28 16:09
  * @Description
  */
-public class PresenterTransform {
+class ProcessPresenter {
 
-    public static boolean transform(CtClass clazz) throws Exception {
-        Object presenter = clazz.getAnnotation(Presenter.class);
-        if (presenter == null) {
-            return false;
-        }
+    void transform(CtClass clazz) throws Exception {
         if (clazz.isFrozen()) clazz.defrost();
-
         String presenterClassName = getPresenterClassName(clazz);
-        if (presenterClassName == null) return false;
+        if (presenterClassName == null) return;
 
         if (!TransformHelper.hasDeclaredMethod(clazz, "createPresenter")) {
             CtMethod method = CtMethod.make("public java.lang.Object createPresenter() {" +
                     "return new " + presenterClassName + "();" +
                     "}", clazz);
             clazz.addMethod(method);
-            return true;
+        } else {
+            throw new Exception("class:" + clazz.getName() + " with @Presenter annotation, but not has method 'createPresenter()' !!");
         }
-        return false;
     }
 
-    private static String getPresenterClassName(CtClass clazz) {
+    private String getPresenterClassName(CtClass clazz) {
         ClassFile classFile = clazz.getClassFile();
         List<AttributeInfo> attributes = classFile.getAttributes();
         for (AttributeInfo info : attributes) {

@@ -1,6 +1,7 @@
 package com.qsmaxmin.plugin.helper;
 
 import com.google.gson.Gson;
+import com.qsmaxmin.plugin.model.DataHolder;
 import com.qsmaxmin.plugin.model.ModelRepositoryInfo;
 
 import java.io.Closeable;
@@ -9,6 +10,8 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
 
 import javax.annotation.Nonnull;
 
@@ -268,5 +271,33 @@ public class TransformHelper {
             if (conn != null) conn.disconnect();
             closeStream(isr);
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    public static <V> List<DataHolder<CtMethod, V>> getAnnotatedMethods(@Nonnull CtMethod[] methods, Class<V> annClass) throws Exception {
+        List<DataHolder<CtMethod, V>> list = null;
+        for (CtMethod method : methods) {
+            Object ann = method.getAnnotation(annClass);
+            if (ann != null) {
+                if (list == null) list = new ArrayList<>();
+                DataHolder<CtMethod, V> holder = new DataHolder<>(method, (V) ann);
+                list.add(holder);
+            }
+        }
+        return list;
+    }
+
+    @SuppressWarnings("unchecked")
+    public static <V> List<DataHolder<CtField, V>> getAnnotatedFields(@Nonnull CtField[] fields, Class<V> annClass) throws Exception {
+        List<DataHolder<CtField, V>> list = null;
+        for (CtField field : fields) {
+            Object ann = field.getAnnotation(annClass);
+            if (ann != null) {
+                if (list == null) list = new ArrayList<>();
+                DataHolder<CtField, V> holder = new DataHolder<>(field, (V) ann);
+                list.add(holder);
+            }
+        }
+        return list;
     }
 }

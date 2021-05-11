@@ -4,9 +4,12 @@ import com.qsmaxmin.annotation.bind.Bind;
 import com.qsmaxmin.annotation.bind.BindBundle;
 import com.qsmaxmin.annotation.bind.OnClick;
 import com.qsmaxmin.plugin.helper.TransformHelper;
+import com.qsmaxmin.plugin.model.DataHolder;
 
-import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
+
+import javax.annotation.Nonnull;
 
 import javassist.CtClass;
 import javassist.CtConstructor;
@@ -19,7 +22,7 @@ import javassist.Modifier;
  * @Date 2020/8/13 16:36
  * @Description
  */
-public class ViewBindTransform {
+class ProcessViewBind {
     private static final String   INTERFACE_BIND_VIEW   = "com.qsmaxmin.qsbase.plugin.bind.QsIBindView";
     private static final String   INTERFACE_BIND_BUNDLE = "com.qsmaxmin.qsbase.plugin.bind.QsIBindBundle";
     private static final String   PATH_BIND_HELPER      = "com.qsmaxmin.qsbase.plugin.bind.ViewBindHelper";
@@ -27,68 +30,25 @@ public class ViewBindTransform {
     private static final String   METHOD_BIND_BUNDLE    = "bindBundleByQsPlugin";
     private static final String   PATH_VIEW             = "android.view.View";
     private static final String   PATH_BUNDLE           = "android.os.Bundle";
-    private static       CtClass  listenerClass;
-    private static       CtMethod onClickMethod;
+    private final        CtClass  listenerClass;
+    private final        CtMethod onClickMethod;
 
-    public static int transform(CtClass clazz, CtMethod[] declaredMethods, CtField[] declaredFields, String rootPath) throws Exception {
-        if (listenerClass == null) {
-            synchronized (ThreadPointTransform.class) {
-                if (listenerClass == null) {
-                    listenerClass = TransformHelper.getInstance().get("android.view.View$OnClickListener");
-                    onClickMethod = listenerClass.getDeclaredMethod("onClick");
-                }
-            }
-        }
-
-        HashMap<CtField, Bind> bindMap = null;
-        HashMap<CtField, BindBundle> bundleMap = null;
-        HashMap<CtMethod, OnClick> onClickMap = null;
-
-        if (declaredFields != null && declaredFields.length > 0) {
-            for (CtField field : declaredFields) {
-                Object obj = field.getAnnotation(Bind.class);
-                if (obj != null) {
-                    if (bindMap == null) bindMap = new HashMap<>();
-                    bindMap.put(field, (Bind) obj);
-                } else {
-                    Object o = field.getAnnotation(BindBundle.class);
-                    if (o != null) {
-                        if (bundleMap == null) bundleMap = new HashMap<>();
-                        bundleMap.put(field, (BindBundle) o);
-                    }
-                }
-            }
-        }
-
-        if (declaredMethods != null && declaredMethods.length > 0) {
-            for (CtMethod method : declaredMethods) {
-                Object obj = method.getAnnotation(OnClick.class);
-                if (obj != null) {
-                    if (onClickMap == null) onClickMap = new HashMap<>();
-                    onClickMap.put(method, (OnClick) obj);
-                }
-            }
-        }
-
-        if (bindMap != null || onClickMap != null || bundleMap != null) {
-            if (clazz.isFrozen()) clazz.defrost();
-            if (bindMap != null || onClickMap != null) {
-                addBindViewMethod(clazz, bindMap, onClickMap, rootPath);
-            }
-            if (bundleMap != null) {
-                addBindBundleMethod(clazz, bundleMap);
-            }
-
-            int state = 0;
-            if (bindMap != null) state |= MainTransform.STATE_BIND_VIEW;
-            if (onClickMap != null) state |= MainTransform.STATE_ONCLICK;
-            if (bundleMap != null) state |= MainTransform.STATE_BIND_BUNDLE;
-            return state;
-        }
-        return 0;
+    ProcessViewBind() throws Exception {
+        listenerClass = TransformHelper.getInstance().get("android.view.View$OnClickListener");
+        onClickMethod = listenerClass.getDeclaredMethod("onClick");
     }
 
-    private static void addBindBundleMethod(CtClass clazz, HashMap<CtField, BindBundle> bundleMap) throws Exception {
+    void transform(CtClass clazz, List<DataHolder<CtField, Bind>> bindData, List<DataHolder<CtField, BindBundle>> bindBundleData,
+            List<DataHolder<CtMethod, OnClick>> onClickData, String rootPath) throws Exception {
+        if (bindBundleData != null) {
+            addBindBundleMethod(clazz, bindBundleData);
+        }
+        if (bindData != null || onClickData != null) {
+            addBindViewMethod(clazz, bindData, onClickData, rootPath);
+        }
+    }
+
+    private void addBindBundleMethod(CtClass clazz, @Nonnull List<DataHolder<CtField, BindBundle>> bindBundleData) throws Exception {
         CtMethod ctMethod = TransformHelper.getDeclaredMethod(clazz, METHOD_BIND_BUNDLE);
         boolean hasInterface = TransformHelper.hasInterface(clazz, INTERFACE_BIND_BUNDLE);
 
@@ -98,18 +58,17 @@ public class ViewBindTransform {
         }
         sb.append("if($1==null)return;");
 
-        for (CtField field : bundleMap.keySet()) {
-            BindBundle bindBundle = bundleMap.get(field);
+        for (DataHolder<CtField, BindBundle> data : bindBundleData) {
+            CtField field = data.key;
+            BindBundle bindBundle = data.value;
             String bk = bindBundle.value();
             String typeName = field.getType().getName();
             String bundleMethodName = getBundleMethodName(typeName);
 
             if (bundleMethodName == null) {
                 sb.append("$0.").append(field.getName()).append("=(").append(typeName).append(")").append(PATH_BIND_HELPER).append(".get($1,\"").append(bk).append("\");");
-//                sb.append("$0.").append(field.getName()).append("=(").append(typeName).append(")$1.get(\"").append(bk).append("\");");
             } else {
                 sb.append("$0.").append(field.getName()).append("=").append(PATH_BIND_HELPER).append(".").append(bundleMethodName).append("($1,\"").append(bk).append("\");");
-//                sb.append("$0.").append(field.getName()).append("=$1.").append(bundleMethodName).append("(\"").append(bk).append("\");");
             }
         }
         String code = sb.append("}").toString();
@@ -125,7 +84,7 @@ public class ViewBindTransform {
         }
     }
 
-    private static String getBundleMethodName(String typeName) {
+    private String getBundleMethodName(String typeName) {
         switch (typeName) {
             case "int":
                 return "getInt";
@@ -150,7 +109,7 @@ public class ViewBindTransform {
         }
     }
 
-    private static void addBindViewMethod(CtClass clazz, HashMap<CtField, Bind> bindMap, HashMap<CtMethod, OnClick> onClickMap, String rootPath) throws Exception {
+    private void addBindViewMethod(CtClass clazz, List<DataHolder<CtField, Bind>> bindData, List<DataHolder<CtMethod, OnClick>> onClickData, String rootPath) throws Exception {
         CtMethod ctMethod = TransformHelper.getDeclaredMethod(clazz, METHOD_BIND_VIEW);
         boolean hasInterface = TransformHelper.hasInterface(clazz, INTERFACE_BIND_VIEW);
         StringBuilder sb = new StringBuilder("{");
@@ -160,11 +119,12 @@ public class ViewBindTransform {
         sb.append("if($1==null)return;");
 
         HashSet<Integer> bindIds = null;
-        if (bindMap != null) {
+        if (bindData != null) {
             bindIds = new HashSet<>();
             int id;
-            for (CtField field : bindMap.keySet()) {
-                Bind bind = bindMap.get(field);
+            for (DataHolder<CtField, Bind> data : bindData) {
+                CtField field = data.key;
+                Bind bind = data.value;
                 id = bind.value();
                 bindIds.add(id);
                 String typeName = field.getType().getName();
@@ -172,14 +132,14 @@ public class ViewBindTransform {
                 sb.append("if(v_").append(id).append("!=null)$0.").append(field.getName()).append("=(").append(typeName).append(")v_").append(id).append(";");
             }
         }
-        if (onClickMap != null) {
+        if (onClickData != null) {
             int index = 0;
-            for (CtMethod method : onClickMap.keySet()) {
-                OnClick onClick = onClickMap.get(method);
+            for (DataHolder<CtMethod, OnClick> data : onClickData) {
+                OnClick onClick = data.value;
                 long interval = onClick.clickInterval();
                 int[] ids = onClick.value();
 
-                CtClass implClass = createClickListenerImplClass(clazz, index, method, interval);
+                CtClass implClass = createClickListenerImplClass(clazz, index, data.key, interval);
                 String implClassName = implClass.getName();
 
                 sb.append(implClassName).append(" l").append(index).append("=new ").append(implClassName).append("($0);");
@@ -206,7 +166,7 @@ public class ViewBindTransform {
         }
     }
 
-    private static CtClass createClickListenerImplClass(CtClass clazz, int index, CtMethod method, long interval) throws Exception {
+    private CtClass createClickListenerImplClass(CtClass clazz, int index, CtMethod method, long interval) throws Exception {
         String implClassName = clazz.getName() + "_QsListener" + index;
         CtClass implClass = TransformHelper.getInstance().makeClassIfNotExists(implClassName);
         if (implClass.isFrozen()) implClass.defrost();
