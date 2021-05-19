@@ -280,8 +280,14 @@ public class TransformHelper {
     }
 
     @SuppressWarnings("unchecked")
-    public static <P> P getMethodAnnotation(CtMethod m, Class<P> clazz) throws Exception {
-        Object obj = m.getAnnotation(clazz);
+    public static <P> P getMethodAnnotation(CtMethod m, Class<P> clazz) {
+
+        Object obj = null;
+        try {
+            obj = m.getAnnotation(clazz);
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+        }
         if (obj != null) {
             return (P) obj;
         }
@@ -289,8 +295,13 @@ public class TransformHelper {
     }
 
     @SuppressWarnings("unchecked")
-    public static <P> P getClassAnnotation(CtClass cl, Class<P> clazz) throws Exception {
-        Object obj = cl.getAnnotation(clazz);
+    public static <P> P getClassAnnotation(CtClass cl, Class<P> clazz) {
+        Object obj = null;
+        try {
+            obj = cl.getAnnotation(clazz);
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+        }
         if (obj != null) {
             return (P) obj;
         }
