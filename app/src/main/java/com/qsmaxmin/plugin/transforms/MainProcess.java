@@ -83,65 +83,66 @@ class MainProcess {
         List<DataHolder<CtMethod, OnClick>> onClickData = null;
 
         for (CtField f : declaredFields) {
-            Object[] annotations = f.getAnnotations();
-            if (annotations != null && annotations.length > 0) {
-                for (Object ann : annotations) {
-                    if (ann instanceof Bind) {
-                        if (bindData == null) bindData = new ArrayList<>();
-                        bindData.add(new DataHolder<>(f, (Bind) ann));
-                    } else if (ann instanceof BindBundle) {
-                        if (bindBundleData == null) bindBundleData = new ArrayList<>();
-                        bindBundleData.add(new DataHolder<>(f, (BindBundle) ann));
-                    } else if (ann instanceof Property) {
-                        if (propertyData == null) propertyData = new ArrayList<>();
-                        propertyData.add(new DataHolder<>(f, (Property) ann));
-                    }
-                }
+            Bind bind = TransformHelper.getFiledAnnotation(f, Bind.class);
+            if (bind != null) {
+                if (bindData == null) bindData = new ArrayList<>();
+                bindData.add(new DataHolder<>(f, bind));
+            }
+            BindBundle bindBundle = TransformHelper.getFiledAnnotation(f, BindBundle.class);
+            if (bindBundle != null) {
+                if (bindBundleData == null) bindBundleData = new ArrayList<>();
+                bindBundleData.add(new DataHolder<>(f, bindBundle));
+            }
+            Property property = TransformHelper.getFiledAnnotation(f, Property.class);
+            if (property != null) {
+                if (propertyData == null) propertyData = new ArrayList<>();
+                propertyData.add(new DataHolder<>(f, property));
             }
         }
         for (CtMethod m : declaredMethods) {
-            Object[] annotations = m.getAnnotations();
-            if (annotations != null && annotations.length > 0) {
-                for (Object ann : annotations) {
-                    if (ann instanceof Subscribe) {
-                        if (subscribeData == null) subscribeData = new ArrayList<>();
-                        subscribeData.add(new DataHolder<>(m, (Subscribe) ann));
-                    } else if (ann instanceof Permission) {
-                        if (permissionData == null) permissionData = new ArrayList<>();
-                        permissionData.add(new DataHolder<>(m, (Permission) ann));
-                    } else if (ann instanceof ThreadPoint) {
-                        if (threadPointData == null) threadPointData = new ArrayList<>();
-                        threadPointData.add(new DataHolder<>(m, (ThreadPoint) ann));
-                    } else if (ann instanceof QsAspect) {
-                        if (qsAspectData == null) qsAspectData = new ArrayList<>();
-                        qsAspectData.add(new DataHolder<>(m, (QsAspect) ann));
-                    } else if (ann instanceof OnClick) {
-                        if (onClickData == null) onClickData = new ArrayList<>();
-                        onClickData.add(new DataHolder<>(m, (OnClick) ann));
-                    }
-                }
+            Subscribe subscribe = TransformHelper.getMethodAnnotation(m, Subscribe.class);
+            if (subscribe != null) {
+                if (subscribeData == null) subscribeData = new ArrayList<>();
+                subscribeData.add(new DataHolder<>(m, subscribe));
+            }
+
+            Permission permission = TransformHelper.getMethodAnnotation(m, Permission.class);
+            if (permission != null) {
+                if (permissionData == null) permissionData = new ArrayList<>();
+                permissionData.add(new DataHolder<>(m, permission));
+            }
+
+            ThreadPoint threadPoint = TransformHelper.getMethodAnnotation(m, ThreadPoint.class);
+            if (threadPoint != null) {
+                if (threadPointData == null) threadPointData = new ArrayList<>();
+                threadPointData.add(new DataHolder<>(m, threadPoint));
+            }
+
+            QsAspect qsAspect = TransformHelper.getMethodAnnotation(m, QsAspect.class);
+            if (qsAspect != null) {
+                if (qsAspectData == null) qsAspectData = new ArrayList<>();
+                qsAspectData.add(new DataHolder<>(m, qsAspect));
+            }
+
+            OnClick onClick = TransformHelper.getMethodAnnotation(m, OnClick.class);
+            if (onClick != null) {
+                if (onClickData == null) onClickData = new ArrayList<>();
+                onClickData.add(new DataHolder<>(m, onClick));
             }
         }
 
-        try {
-            Object[] classAnnotations = clazz.getAnnotations();
-            if (classAnnotations != null && classAnnotations.length > 0) {
-                for (Object ann : classAnnotations) {
-                    if (ann instanceof AutoProperty) {
-                        if (propertyData != null) {
-                            if (processProperty == null) processProperty = new ProcessProperty();
-                            processProperty.transform(clazz, propertyData);
-                            state |= STATE_PROPERTY;
-                        }
-                    } else if (ann instanceof Presenter) {
-                        if (processPresenter == null) processPresenter = new ProcessPresenter();
-                        processPresenter.transform(clazz);
-                        state |= STATE_PRESENTER;
-                    }
-                }
-            }
-        } catch (Throwable t) {
-            println("\t\t> transform error class：" + clazz.getName() + ", error：" + t.getMessage());
+        AutoProperty autoProperty = TransformHelper.getClassAnnotation(clazz, AutoProperty.class);
+        if (autoProperty != null && propertyData != null) {
+            if (processProperty == null) processProperty = new ProcessProperty();
+            processProperty.transform(clazz, propertyData);
+            state |= STATE_PROPERTY;
+        }
+
+        Presenter presenter = TransformHelper.getClassAnnotation(clazz, Presenter.class);
+        if (presenter != null) {
+            if (processPresenter == null) processPresenter = new ProcessPresenter();
+            processPresenter.transform(clazz);
+            state |= STATE_PRESENTER;
         }
 
         if (subscribeData != null) {

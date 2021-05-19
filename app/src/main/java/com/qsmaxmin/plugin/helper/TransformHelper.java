@@ -1,7 +1,6 @@
 package com.qsmaxmin.plugin.helper;
 
 import com.google.gson.Gson;
-import com.qsmaxmin.plugin.model.DataHolder;
 import com.qsmaxmin.plugin.model.ModelRepositoryInfo;
 
 import java.io.Closeable;
@@ -10,8 +9,6 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.util.ArrayList;
-import java.util.List;
 
 import javax.annotation.Nonnull;
 
@@ -30,13 +27,12 @@ import javassist.NotFoundException;
 public class TransformHelper {
     private static TransformHelper helper;
     private static boolean         enableLog;
-    private        ClassPool       classPool;
+    private final  ClassPool       classPool;
 
     public TransformHelper() {
         ClassPool.cacheOpenedJarFile = false;
         classPool = new ClassPool(null);
         classPool.appendSystemPath();
-
     }
 
     public static TransformHelper getInstance() {
@@ -273,31 +269,31 @@ public class TransformHelper {
         }
     }
 
+
     @SuppressWarnings("unchecked")
-    public static <V> List<DataHolder<CtMethod, V>> getAnnotatedMethods(@Nonnull CtMethod[] methods, Class<V> annClass) throws Exception {
-        List<DataHolder<CtMethod, V>> list = null;
-        for (CtMethod method : methods) {
-            Object ann = method.getAnnotation(annClass);
-            if (ann != null) {
-                if (list == null) list = new ArrayList<>();
-                DataHolder<CtMethod, V> holder = new DataHolder<>(method, (V) ann);
-                list.add(holder);
-            }
+    public static <P> P getFiledAnnotation(CtField f, Class<P> clazz) throws Exception {
+        Object obj = f.getAnnotation(clazz);
+        if (obj != null) {
+            return (P) obj;
         }
-        return list;
+        return null;
     }
 
     @SuppressWarnings("unchecked")
-    public static <V> List<DataHolder<CtField, V>> getAnnotatedFields(@Nonnull CtField[] fields, Class<V> annClass) throws Exception {
-        List<DataHolder<CtField, V>> list = null;
-        for (CtField field : fields) {
-            Object ann = field.getAnnotation(annClass);
-            if (ann != null) {
-                if (list == null) list = new ArrayList<>();
-                DataHolder<CtField, V> holder = new DataHolder<>(field, (V) ann);
-                list.add(holder);
-            }
+    public static <P> P getMethodAnnotation(CtMethod m, Class<P> clazz) throws Exception {
+        Object obj = m.getAnnotation(clazz);
+        if (obj != null) {
+            return (P) obj;
         }
-        return list;
+        return null;
+    }
+
+    @SuppressWarnings("unchecked")
+    public static <P> P getClassAnnotation(CtClass cl, Class<P> clazz) throws Exception {
+        Object obj = cl.getAnnotation(clazz);
+        if (obj != null) {
+            return (P) obj;
+        }
+        return null;
     }
 }
