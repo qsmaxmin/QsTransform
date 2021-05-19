@@ -271,8 +271,13 @@ public class TransformHelper {
 
 
     @SuppressWarnings("unchecked")
-    public static <P> P getFiledAnnotation(CtField f, Class<P> clazz) throws Exception {
-        Object obj = f.getAnnotation(clazz);
+    public static <P> P getFiledAnnotation(CtField f, Class<P> clazz) {
+        Object obj = null;
+        try {
+            obj = f.getAnnotation(clazz);
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+        }
         if (obj != null) {
             return (P) obj;
         }
