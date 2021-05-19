@@ -281,7 +281,6 @@ public class TransformHelper {
 
     @SuppressWarnings("unchecked")
     public static <P> P getMethodAnnotation(CtMethod m, Class<P> clazz) {
-
         Object obj = null;
         try {
             obj = m.getAnnotation(clazz);
