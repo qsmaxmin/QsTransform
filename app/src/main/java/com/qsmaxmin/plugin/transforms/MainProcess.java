@@ -123,21 +123,25 @@ class MainProcess {
             }
         }
 
-        Object[] classAnnotations = clazz.getAnnotations();
-        if (classAnnotations != null && classAnnotations.length > 0) {
-            for (Object ann : classAnnotations) {
-                if (ann instanceof AutoProperty) {
-                    if (propertyData != null) {
-                        if (processProperty == null) processProperty = new ProcessProperty();
-                        processProperty.transform(clazz, propertyData);
-                        state |= STATE_PROPERTY;
+        try {
+            Object[] classAnnotations = clazz.getAnnotations();
+            if (classAnnotations != null && classAnnotations.length > 0) {
+                for (Object ann : classAnnotations) {
+                    if (ann instanceof AutoProperty) {
+                        if (propertyData != null) {
+                            if (processProperty == null) processProperty = new ProcessProperty();
+                            processProperty.transform(clazz, propertyData);
+                            state |= STATE_PROPERTY;
+                        }
+                    } else if (ann instanceof Presenter) {
+                        if (processPresenter == null) processPresenter = new ProcessPresenter();
+                        processPresenter.transform(clazz);
+                        state |= STATE_PRESENTER;
                     }
-                } else if (ann instanceof Presenter) {
-                    if (processPresenter == null) processPresenter = new ProcessPresenter();
-                    processPresenter.transform(clazz);
-                    state |= STATE_PRESENTER;
                 }
             }
+        } catch (Throwable t) {
+            println("\t\t> transform error class：" + clazz.getName() + ", error：" + t.getMessage());
         }
 
         if (subscribeData != null) {
