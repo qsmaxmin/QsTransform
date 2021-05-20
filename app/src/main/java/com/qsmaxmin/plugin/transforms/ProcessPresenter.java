@@ -25,8 +25,10 @@ class ProcessPresenter {
         if (presenterClassName == null) return;
 
         if (!TransformHelper.hasDeclaredMethod(clazz, "createPresenter")) {
-            CtMethod method = CtMethod.make("public java.lang.Object createPresenter() {" +
-                    "return new " + presenterClassName + "();" +
+            CtMethod method = CtMethod.make("public " + presenterClassName + " createPresenter() {" +
+                    presenterClassName + " p = new " + presenterClassName + "();" +
+                    "p.initPresenter(this); " +
+                    "return p;" +
                     "}", clazz);
             clazz.addMethod(method);
         } else {
