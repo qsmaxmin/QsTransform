@@ -10,6 +10,8 @@ import com.qsmaxmin.annotation.permission.Permission;
 import com.qsmaxmin.annotation.presenter.Presenter;
 import com.qsmaxmin.annotation.properties.AutoProperty;
 import com.qsmaxmin.annotation.properties.Property;
+import com.qsmaxmin.annotation.route.AutoRoute;
+import com.qsmaxmin.annotation.route.Route;
 import com.qsmaxmin.annotation.thread.ThreadPoint;
 import com.qsmaxmin.plugin.helper.TransformHelper;
 import com.qsmaxmin.plugin.model.DataHolder;
@@ -33,13 +35,14 @@ import javassist.CtMethod;
 class MainProcess {
     private static final int                STATE_PROPERTY     = 0b1;
     private static final int                STATE_PRESENTER    = 0b1 << 1;
-    private static final int                STATE_EVENT        = 0b1 << 2;
-    public static final  int                STATE_BIND_VIEW    = 0b1 << 3;
-    public static final  int                STATE_ONCLICK      = 0b1 << 4;
-    public static final  int                STATE_BIND_BUNDLE  = 0b1 << 5;
-    private static final int                STATE_PERMISSION   = 0b1 << 6;
-    private static final int                STATE_THREAD_POINT = 0b1 << 7;
-    private static final int                STATE_ASPECT       = 0b1 << 8;
+    private static final int                STATE_ROUTE        = 0b1 << 2;
+    private static final int                STATE_EVENT        = 0b1 << 3;
+    public static final  int                STATE_BIND_VIEW    = 0b1 << 4;
+    public static final  int                STATE_ONCLICK      = 0b1 << 5;
+    public static final  int                STATE_BIND_BUNDLE  = 0b1 << 6;
+    private static final int                STATE_PERMISSION   = 0b1 << 7;
+    private static final int                STATE_THREAD_POINT = 0b1 << 8;
+    private static final int                STATE_ASPECT       = 0b1 << 9;
     private              ProcessAspect      processAspect;
     private              ProcessEvent       processEvent;
     private              ProcessPermission  processPermission;
@@ -47,6 +50,7 @@ class MainProcess {
     private              ProcessProperty    processProperty;
     private              ProcessThreadPoint processThreadPoint;
     private              ProcessViewBind    processViewBind;
+    private              ProcessRoute       processRoute;
 
     boolean processClassFile(String outputDirPath, File outputFile, File inputFile) throws Exception {
         if (isClassFile(inputFile)) {
@@ -59,11 +63,11 @@ class MainProcess {
                 TransformHelper.closeStream(fis);
             }
             return processJavaClassFile(outputDirPath, ctClass);
+
         } else {
             FileUtils.copyFile(inputFile, outputFile);
+            return false;
         }
-        FileUtils.copyFile(inputFile, outputFile);
-        return false;
     }
 
     private boolean processJavaClassFile(String rootPath, CtClass clazz) throws Exception {
@@ -145,6 +149,19 @@ class MainProcess {
             state |= STATE_PRESENTER;
         }
 
+        AutoRoute autoRoute = TransformHelper.getClassAnnotation(clazz, AutoRoute.class);
+        if (autoRoute != null) {
+            if (processRoute == null) processRoute = new ProcessRoute();
+            processRoute.setRouteEngine(clazz, rootPath);
+        }
+
+        Route route = TransformHelper.getClassAnnotation(clazz, Route.class);
+        if (route != null) {
+            if (processRoute == null) processRoute = new ProcessRoute();
+            processRoute.addRouteClass(route, clazz);
+            state |= STATE_ROUTE;
+        }
+
         if (subscribeData != null) {
             if (processEvent == null) processEvent = new ProcessEvent();
             processEvent.transform(clazz, subscribeData, rootPath);
@@ -182,6 +199,11 @@ class MainProcess {
         return state != 0;
     }
 
+    void onComplete() throws Exception {
+        if (processRoute != null) {
+            processRoute.beginTransform();
+        }
+    }
 
     private boolean isClassFile(File file) {
         return file.getName().endsWith(SdkConstants.DOT_CLASS);
@@ -199,6 +221,11 @@ class MainProcess {
         if ((state & STATE_PRESENTER) == STATE_PRESENTER) {
             if (tag) sb.append(", ");
             sb.append("@Presenter");
+            tag = true;
+        }
+        if ((state & STATE_ROUTE) == STATE_ROUTE) {
+            if (tag) sb.append(", ");
+            sb.append("@Route");
             tag = true;
         }
         if ((state & STATE_EVENT) == STATE_EVENT) {
@@ -229,6 +256,7 @@ class MainProcess {
         if ((state & STATE_BIND_BUNDLE) == STATE_BIND_BUNDLE) {
             if (tag) sb.append(", ");
             sb.append("@BindBundle");
+            tag = true;
         }
         if ((state & STATE_ASPECT) == STATE_ASPECT) {
             if (tag) sb.append(", ");
@@ -240,4 +268,5 @@ class MainProcess {
     private void println(String text) {
         TransformHelper.println(text);
     }
+
 }

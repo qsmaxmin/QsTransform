@@ -6,7 +6,7 @@ dependencies {
     implementation localGroovy()
     implementation "com.android.tools.build:gradle:3.6.3"
     implementation 'org.javassist:javassist:3.27.0-GA'
-    implementation 'com.github.qsmaxmin:QsAnnotation:1.0.7'
+    implementation 'com.github.qsmaxmin:QsAnnotation:1.1.1'
 }
 
 tasks.withType(JavaCompile) {

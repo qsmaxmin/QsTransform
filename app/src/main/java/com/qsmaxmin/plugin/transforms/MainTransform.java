@@ -94,6 +94,8 @@ public class MainTransform extends Transform {
                     processDirInputs(dirInputs, outputProvider, incremental);
                 }
             }
+
+            mainProcess.onComplete();
             println("\t> QsTransform ended...... time spent:" + (System.currentTimeMillis() - startTime) + " ms");
         } catch (Exception e) {
             e.printStackTrace();
