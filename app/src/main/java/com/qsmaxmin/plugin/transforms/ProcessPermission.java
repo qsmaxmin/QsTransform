@@ -42,12 +42,15 @@ class ProcessPermission {
                 continue;
             }
             boolean forceGoOn = permission.forceGoOn();
+            boolean showToast = permission.showToastWhenReject();
+            String showToastText = permission.toastText();
+
 
             addNewMethod(clazz, originalMethod, methodIndex, isStaticMethod);
 
             CtClass implClass = createCallbackImplClass(clazz, originalMethod, forceGoOn, methodIndex, isStaticMethod);
 
-            String code = generateOriginalMethodCode(permissionArr, originalMethod, implClass.getName(), methodIndex, isStaticMethod);
+            String code = generateOriginalMethodCode(permissionArr, showToast, showToastText, originalMethod, implClass.getName(), methodIndex, isStaticMethod);
             originalMethod.setBody(code);
 
             implClass.writeFile(rootPath);
@@ -177,7 +180,7 @@ class ProcessPermission {
         }
     }
 
-    private String generateOriginalMethodCode(String[] permissionArr, CtMethod originalMethod, String callbackImpl, int methodIndex, boolean isStaticMethod) throws Exception {
+    private String generateOriginalMethodCode(String[] permissionArr, boolean showToast, String toastText, CtMethod originalMethod, String callbackImpl, int methodIndex, boolean isStaticMethod) throws Exception {
         StringBuilder temp = new StringBuilder();
         for (int i = 0; i < permissionArr.length; i++) {
             temp.append('\"').append(permissionArr[i]).append('\"');
@@ -212,10 +215,11 @@ class ProcessPermission {
         }
         boolean hasReturnValue = originalMethod.getReturnType() != CtClass.voidType;
 
-        return "{" + "String[] permissions = new String[]{" + permissionText + "};" +
+        return "{" + "String[] permissions = new String[]{" + permissionText + "};"
+                + "" +
                 "boolean granted = " + CLASS_PERMISSION_HELPER + "." + METHOD_CHECK_PERMISSION + "(permissions);" +
                 "if(granted){" + (hasReturnValue ? "return " : "") + newMethodName + "($$);}" +
-                "else{" + CLASS_PERMISSION_HELPER + ".getInstance()." + METHOD_REQUEST_PERMISSION + "(" + implCode + ", permissions);" +
+                "else{" + CLASS_PERMISSION_HELPER + ".getInstance()." + METHOD_REQUEST_PERMISSION + "(" + implCode + ", " + (showToast ? "true" : "false") + ", \"" + toastText + "\", permissions);" +
                 (hasReturnValue ? TransformHelper.getDefaultReturnText(originalMethod) : "") + "}}";
     }
 
