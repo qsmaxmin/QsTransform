@@ -15,6 +15,7 @@ import com.qsmaxmin.annotation.route.Route;
 import com.qsmaxmin.annotation.thread.ThreadPoint;
 import com.qsmaxmin.plugin.helper.TransformHelper;
 import com.qsmaxmin.plugin.model.DataHolder;
+import com.qsmaxmin.plugin.model.ModelTransformConfig;
 
 import org.apache.commons.io.FileUtils;
 
@@ -22,6 +23,8 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.util.ArrayList;
 import java.util.List;
+
+import javax.annotation.Nonnull;
 
 import javassist.CtClass;
 import javassist.CtField;
@@ -33,24 +36,44 @@ import javassist.CtMethod;
  * @Description
  */
 class MainProcess {
-    private static final int                STATE_PROPERTY     = 0b1;
-    private static final int                STATE_PRESENTER    = 0b1 << 1;
-    private static final int                STATE_ROUTE        = 0b1 << 2;
-    private static final int                STATE_EVENT        = 0b1 << 3;
-    public static final  int                STATE_BIND_VIEW    = 0b1 << 4;
-    public static final  int                STATE_ONCLICK      = 0b1 << 5;
-    public static final  int                STATE_BIND_BUNDLE  = 0b1 << 6;
-    private static final int                STATE_PERMISSION   = 0b1 << 7;
-    private static final int                STATE_THREAD_POINT = 0b1 << 8;
-    private static final int                STATE_ASPECT       = 0b1 << 9;
-    private              ProcessAspect      processAspect;
-    private              ProcessEvent       processEvent;
-    private              ProcessPermission  processPermission;
-    private              ProcessPresenter   processPresenter;
-    private              ProcessProperty    processProperty;
-    private              ProcessThreadPoint processThreadPoint;
-    private              ProcessViewBind    processViewBind;
-    private              ProcessRoute       processRoute;
+    private static final int                  STATE_PROPERTY     = 0b1;
+    private static final int                  STATE_PRESENTER    = 0b1 << 1;
+    private static final int                  STATE_ROUTE        = 0b1 << 2;
+    private static final int                  STATE_EVENT        = 0b1 << 3;
+    public static final  int                  STATE_BIND_VIEW    = 0b1 << 4;
+    public static final  int                  STATE_ONCLICK      = 0b1 << 5;
+    public static final  int                  STATE_BIND_BUNDLE  = 0b1 << 6;
+    private static final int                  STATE_PERMISSION   = 0b1 << 7;
+    private static final int                  STATE_THREAD_POINT = 0b1 << 8;
+    private static final int                  STATE_ASPECT       = 0b1 << 9;
+    private final        ModelTransformConfig transformConfig;
+    private              ProcessAspect        processAspect;
+    private              ProcessEvent         processEvent;
+    private              ProcessPermission    processPermission;
+    private              ProcessPresenter     processPresenter;
+    private              ProcessProperty      processProperty;
+    private              ProcessThreadPoint   processThreadPoint;
+    private              ProcessViewBind      processViewBind;
+
+    public MainProcess(@Nonnull ModelTransformConfig config) {
+        this.transformConfig = config;
+    }
+
+    public void processRemovedFile(File inputFile) throws Exception {
+        if (isClassFile(inputFile)) {
+            CtClass ctClass;
+            FileInputStream fis = null;
+            try {
+                fis = new FileInputStream(inputFile.getAbsolutePath());
+                ctClass = TransformHelper.getInstance().makeClass(fis, false);
+                if (ctClass != null) {
+                    transformConfig.removeRouteClass(ctClass.getName());
+                }
+            } finally {
+                TransformHelper.closeStream(fis);
+            }
+        }
+    }
 
     boolean processClassFile(String outputDirPath, File outputFile, File inputFile) throws Exception {
         if (isClassFile(inputFile)) {
@@ -151,14 +174,11 @@ class MainProcess {
 
         AutoRoute autoRoute = TransformHelper.getClassAnnotation(clazz, AutoRoute.class);
         if (autoRoute != null) {
-            if (processRoute == null) processRoute = new ProcessRoute();
-            processRoute.setRouteEngine(clazz, rootPath);
+            transformConfig.setRouteEngine(clazz, rootPath);
         }
 
         Route route = TransformHelper.getClassAnnotation(clazz, Route.class);
-        if (route != null) {
-            if (processRoute == null) processRoute = new ProcessRoute();
-            processRoute.addRouteClass(route, clazz);
+        if (route != null && transformConfig.addRouteClass(clazz.getName(), route.value())) {
             state |= STATE_ROUTE;
         }
 
@@ -197,12 +217,6 @@ class MainProcess {
         clazz.writeFile(rootPath);
         showTransformInfoLog(clazz, state);
         return state != 0;
-    }
-
-    void onComplete() throws Exception {
-        if (processRoute != null) {
-            processRoute.beginTransform();
-        }
     }
 
     private boolean isClassFile(File file) {
@@ -268,5 +282,4 @@ class MainProcess {
     private void println(String text) {
         TransformHelper.println(text);
     }
-
 }

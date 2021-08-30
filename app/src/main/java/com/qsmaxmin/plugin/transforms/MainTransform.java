@@ -15,6 +15,7 @@ import com.android.build.gradle.internal.pipeline.TransformManager;
 import com.android.utils.FileUtils;
 import com.qsmaxmin.plugin.extension.MyExtension;
 import com.qsmaxmin.plugin.helper.TransformHelper;
+import com.qsmaxmin.plugin.model.ModelTransformConfig;
 
 import org.gradle.api.Project;
 import org.gradle.api.file.FileCollection;
@@ -28,13 +29,16 @@ import java.util.Set;
 import javassist.NotFoundException;
 
 public class MainTransform extends Transform {
-    private final Project     project;
-    private final MainProcess mainProcess;
-    private       MyExtension myExtension;
+    private final Project            project;
+    private final MainProcess          mainProcess;
+    private final ModelTransformConfig cacheInfo;
+    private       MyExtension          myExtension;
 
     public MainTransform(Project project) {
         this.project = project;
-        this.mainProcess = new MainProcess();
+        ModelTransformConfig info = ModelTransformConfig.readCacheInfo(project);
+        this.cacheInfo = (info == null ? new ModelTransformConfig() : info);
+        this.mainProcess = new MainProcess(cacheInfo);
     }
 
     @Override
@@ -72,11 +76,14 @@ public class MainTransform extends Transform {
         if (myExtension == null || !myExtension.enable) return;
         TransformHelper.enableLog(myExtension.showLog);
         boolean incremental = transformInvocation.isIncremental();
+        if (!incremental) {//全增量编译时清除缓存数据
+            cacheInfo.reset(project);
+        }
         long startTime = System.currentTimeMillis();
 
         Collection<TransformInput> inputs = transformInvocation.getInputs();
         TransformOutputProvider outputProvider = transformInvocation.getOutputProvider();
-
+        println("\t> QsTransform .......cacheInfo:" + (cacheInfo == null ? "null" : cacheInfo.toString()));
         println("\t> QsTransform started.......incremental:" + incremental + ", input size:" + inputs.size() + ", params:" + myExtension.toString());
         try {
             appendAndroidJar();
@@ -95,7 +102,12 @@ public class MainTransform extends Transform {
                 }
             }
 
-            mainProcess.onComplete();
+            //处理完所有类后如果有@Route注解的路由类，则将指定路由类数据写入拥有@AutoRoute注解的类中
+            if (cacheInfo.hasRouteData()) {
+                ProcessRoute.beginTransform(cacheInfo);
+                cacheInfo.save(project);
+            }
+
             println("\t> QsTransform ended...... time spent:" + (System.currentTimeMillis() - startTime) + " ms");
         } catch (Exception e) {
             e.printStackTrace();
@@ -134,6 +146,7 @@ public class MainTransform extends Transform {
                         }
                         case REMOVED: {
                             File outputFile = toOutputFile(outputDir, inputDir, inputFile);
+                            mainProcess.processRemovedFile(inputFile);
                             if (outputFile.exists()) FileUtils.delete(outputFile);
                             break;
                         }

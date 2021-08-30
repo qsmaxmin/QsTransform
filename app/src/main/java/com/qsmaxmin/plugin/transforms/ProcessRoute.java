@@ -1,9 +1,10 @@
 package com.qsmaxmin.plugin.transforms;
 
-import com.qsmaxmin.annotation.route.Route;
 import com.qsmaxmin.plugin.helper.TransformHelper;
+import com.qsmaxmin.plugin.model.ModelTransformConfig;
 
 import java.util.HashMap;
+import java.util.HashSet;
 
 import javassist.CtClass;
 import javassist.CtMethod;
@@ -15,50 +16,41 @@ import javassist.Modifier;
  * @Description
  */
 class ProcessRoute {
-    static final  String                  BIND_METHOD_NAME = "bindRouteByQsPlugin";
-    private final HashMap<String, String> routeMap;
-    private       CtClass                 routeClass;
-    private       String                  rootPath;
+    static final String BIND_METHOD_NAME = "bindRouteByQsPlugin";
 
-    public ProcessRoute() {
-        routeMap = new HashMap<>();
-    }
+    static void beginTransform(ModelTransformConfig cacheInfo) throws Exception {
+        if (!cacheInfo.hasRouteData()) return;
+        CtClass routeClass = TransformHelper.getInstance().get(cacheInfo.engineClassName);
+        String rootPath = cacheInfo.engineRootPath;
+        HashMap<String, String> routeMap = cacheInfo.classNameRoutes;
 
-    void addRouteClass(Route route, CtClass clazz) {
-        String routePath = route.value();
-        String className = clazz.getName();
-        routeMap.put(routePath, className);
-    }
-
-    void setRouteEngine(CtClass clazz, String rootPath) {
-        this.routeClass = clazz;
-        this.rootPath = rootPath;
-    }
-
-    void beginTransform() throws Exception {
-        if (routeMap.isEmpty()) return;
         if (routeClass == null) {
-            throw new Exception("你的Application需要继承QsApplication或者实现QsIApplication接口，且需要在你的Application类上添加@AutoRoute注解");
+            throw new Exception("使用@Route注解时，你的Application需要继承QsApplication或者实现QsIApplication接口，且需要在你的Application类上添加@AutoRoute注解");
         }
         if (routeClass.isFrozen()) routeClass.defrost();
 
+        HashSet<String> routePathList = new HashSet<>();
         StringBuilder sb = new StringBuilder("{");
-        for (String routePath : routeMap.keySet()) {
-            String routeClassPath = routeMap.get(routePath);
-            sb.append("$1.put(\"").append(routePath).append("\", ").append(routeClassPath).append(".class);");
+        for (String routeClassName : routeMap.keySet()) {
+            String routePath = routeMap.get(routeClassName);
+            sb.append("$1.put(\"").append(routePath).append("\", ").append(routeClassName).append(".class);");
+            if (routePathList.contains(routePath)) {
+                throw new Exception("@Route注解时使用了相同的值：@Route(" + routePath + ")，需确保该值唯一！");
+            }
+            routePathList.add(routePath);
         }
         String code = sb.append('}').toString();
 
         CtMethod engineMethod = TransformHelper.getDeclaredMethod(routeClass, BIND_METHOD_NAME);
         if (engineMethod != null) {
-            engineMethod.insertAfter(code);
+            engineMethod.setBody(code);
 
         } else {
             CtClass[] paramsClass = new CtClass[]{TransformHelper.getInstance().get(HashMap.class.getName())};
-            CtMethod ctMethod = new CtMethod(CtClass.voidType, BIND_METHOD_NAME, paramsClass, routeClass);
-            ctMethod.setModifiers(Modifier.PUBLIC);
-            ctMethod.setBody(code);
-            routeClass.addMethod(ctMethod);
+            engineMethod = new CtMethod(CtClass.voidType, BIND_METHOD_NAME, paramsClass, routeClass);
+            engineMethod.setModifiers(Modifier.PUBLIC);
+            engineMethod.setBody(code);
+            routeClass.addMethod(engineMethod);
         }
         routeClass.writeFile(rootPath);
     }
